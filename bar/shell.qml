@@ -2,7 +2,6 @@ import Quickshell
 import QtQuick
 
 import qs.src.features.bar
-import qs.src.features.notificationPanel
 import qs.src.features.logoutPanel
 import qs.src.features.performance
 import qs.src.popups.power
@@ -42,9 +41,6 @@ Scope {
     PerformancePopup {
         id: perfPopup
         bar: root.activeBar
-    }
-    NotificationPanel {
-        id: notifPanel
     }
     QuotePopup {
         id: quotePopup
