@@ -44,7 +44,7 @@ Scope {
             right: true
         }
         margins { 
-            top: 12
+            top: 12 + Config.barHeight
             right: 12
         }
 
@@ -135,7 +135,7 @@ Scope {
             right: true
         }
         margins { 
-            top: 12
+            top: 12 + Config.barHeight
             right: 12
         }
 

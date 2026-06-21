@@ -28,9 +28,15 @@ Singleton {
 
                 property int timeout
             }
+            property JsonObject bar: JsonObject {
+                id: barConfig
+
+                property int height
+            }
         }
     }
     property alias fontfamily: textConfig.fontfamily
     property alias fontsize: textConfig.fontsize
     property alias notificationsTimeout: notificationsConfig.timeout
+    property alias barHeight: barConfig.height
 }
