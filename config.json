@@ -1,0 +1,12 @@
+{
+  "bar": {
+    "height": 35
+  },
+  "text": {
+    "fontfamily": "NerdFont Mono",
+    "fontsize": 14
+  },
+  "notifications": {
+    "timeout": 5000
+  }
+}
