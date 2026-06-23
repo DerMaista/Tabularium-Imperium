@@ -9,6 +9,7 @@ import QtQuick.Controls
 import qs.config
 
 Scope {
+    
     id: root
     property bool centerOpen: false
     ListModel { id: history }
@@ -37,6 +38,7 @@ Scope {
         function toggle(): void { root.centerOpen = !root.centerOpen }
         function show(): void { root.centerOpen = true }
         function hide(): void { root.centerOpen = false }
+        function debug(): void { console.log("IPC Debug: " + Config.barHeight) }
     }
 
     PanelWindow {
@@ -76,7 +78,7 @@ Scope {
                     Layout.preferredHeight: layout.implicitHeight + 20
 
                     radius: 0
-                    color: Colors.background
+                    color: Colors.surface
                     border.width: 2
                     border.color: modelData.urgency === NotificationUrgency.Critical
                         ? Colors.error : Colors.primary
@@ -113,7 +115,7 @@ Scope {
                                 Layout.fillWidth: true
                                 visible: text !== ""
                                 text: card.modelData.body
-                                color: Colors.on_background
+                                color: Colors.on_surface
                                 font.family: Config.fontfamily
                                 font.pixelSize: Config.fontsize - 1
                                 wrapMode: Text.WordWrap
@@ -148,7 +150,7 @@ Scope {
         Rectangle {
             anchors.fill: parent
             radius: 0
-            color: Colors.background
+            color: Colors.surface
             border.width: 2
             border.color: Colors.primary
 
@@ -215,7 +217,7 @@ Scope {
                                 Layout.preferredHeight: layout.implicitHeight + 20
 
                                 radius: 0
-                                color: Colors.background
+                                color: Colors.surface
                                 border.width: 2
                                 border.color: modelData.urgency === NotificationUrgency.Critical
                                     ? Colors.error : Colors.primary
@@ -242,7 +244,7 @@ Scope {
                                             }
                                             Text {
                                                 text: card.modelData.time
-                                                color: Colors.tertiary
+                                                color: Colors.secondary_container
                                                 font.family: Config.fontfamily
                                                 font.pixelSize: Config.fontsize - 3
                                             }
