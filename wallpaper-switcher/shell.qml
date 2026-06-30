@@ -13,8 +13,8 @@ PanelWindow {
     visible: true
     color: "transparent"
 
-    implicitWidth: 1000 
-    implicitHeight: 1000 
+    implicitWidth: 1000
+    implicitHeight: 1000
 
     focusable: true
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
@@ -97,6 +97,12 @@ PanelWindow {
         return { minX, maxX, minY, maxY }
     }
 
+    Process {
+        id: applyWallpaperProcess
+        property string targetPath: ""
+        command: [ "sh", "-c", "notify-send 'Applying wallpaper' '" + targetPath + "' && " + Config.wallpaperCmd + " '" + targetPath + "'" ]
+    }
+
     Rectangle {
         id: background
         anchors.fill: parent
@@ -113,12 +119,12 @@ PanelWindow {
             Qt.quit()
         }
         onActiveFocusChanged: {
-            
+
             if (!activeFocus)
             Qt.quit()
-            
+
         }
-        
+
     }
 
     Item {
@@ -168,6 +174,7 @@ PanelWindow {
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
+                        applyWallpaperProcess.targetPath = wallpaperPath
                         applyWallpaperProcess.running = true
                         Qt.quit()
                     }
@@ -178,10 +185,6 @@ PanelWindow {
                         scale = hovered ? 1.2 : 1.0
                         z = hovered ? 1 : 0
                     }
-                }
-                Process {
-                    id: applyWallpaperProcess
-                    command: [ "sh", "-c", "notify-send 'Applying wallpaper' '" + wallpaperPath + "' && " + Config.wallpaperCmd + " '" + wallpaperPath + "'" ]
                 }
             }
         }

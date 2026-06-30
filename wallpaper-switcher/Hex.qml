@@ -60,6 +60,8 @@ Item {
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
+            sourceSize.width: hexItem.implicitWidth * 2
+            sourceSize.height: hexItem.implicitHeight * 2
         }
     }
 
