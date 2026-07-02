@@ -109,6 +109,7 @@ PanelWindow {
         color: Colors.surface
         border.width: 2
         border.color: Colors.primary
+        z: -1
 
         focus: true
         Keys.enabled: true
@@ -124,7 +125,6 @@ PanelWindow {
             Qt.quit()
 
         }
-
     }
 
     Item {

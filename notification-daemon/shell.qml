@@ -9,14 +9,14 @@ import QtQuick.Controls
 import qs.config
 
 Scope {
-    
+
     id: root
     property bool centerOpen: false
     ListModel { id: history }
 
     NotificationServer {
         id: server
-        
+
         actionsSupported: true
         bodySupported: true
         imageSupported: true
@@ -42,11 +42,11 @@ Scope {
     }
 
     PanelWindow {
-        anchors { 
+        anchors {
             top: true
             right: true
         }
-        margins { 
+        margins {
             top: 12 + Config.barHeight
             right: 12
         }
@@ -82,7 +82,7 @@ Scope {
                     border.width: 2
                     border.color: modelData.urgency === NotificationUrgency.Critical
                         ? Colors.error : Colors.primary
-                    
+
                     RowLayout {
                         id: layout
                         anchors.fill: parent
@@ -133,11 +133,11 @@ Scope {
 
     PanelWindow {
         visible: root.centerOpen
-        anchors { 
+        anchors {
             top: true
             right: true
         }
-        margins { 
+        margins {
             top: 12 + Config.barHeight
             right: 12
         }
@@ -165,7 +165,7 @@ Scope {
                     Layout.column: 0
                     anchors.margins: 12
                     spacing: 10
-                    
+
                     RowLayout {
                         Layout.fillWidth: true
 
@@ -190,7 +190,7 @@ Scope {
                         }
                     }
                 }
-                
+
                 ScrollView {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -221,7 +221,7 @@ Scope {
                                 border.width: 2
                                 border.color: modelData.urgency === NotificationUrgency.Critical
                                     ? Colors.error : Colors.primary
-                                
+
                                 RowLayout {
                                     id: layout
                                     anchors.fill: parent
