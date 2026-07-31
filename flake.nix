@@ -25,6 +25,8 @@
           import ./packages/notification-daemon.nix { inherit pkgs; };
         quickshell-wallpaper-switcher =
           import ./packages/wallpaper-switcher.nix { inherit pkgs; };
+
+        blueshell = import ./packages/blueshell.nix { inherit pkgs; };
       };
     };
   };
