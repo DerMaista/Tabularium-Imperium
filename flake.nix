@@ -19,7 +19,10 @@
       "aarch64-linux"
     ];
 
-    perSystem = { pkgs, ... }: {
+    perSystem = { pkgs, ... }:
+      let
+        blueshell = import ./packages/blueshell.nix { inherit pkgs; };
+      in {
       packages = {
         quickshell-bar = import ./packages/bar.nix { inherit pkgs; };
         quickshell-notification-daemon =
@@ -27,7 +30,18 @@
         quickshell-wallpaper-switcher =
           import ./packages/wallpaper-switcher.nix { inherit pkgs; };
 
-        blueshell = import ./packages/blueshell.nix { inherit pkgs; };
+        inherit blueshell;
+      };
+
+      apps = {
+        blueshell = {
+          type = "app";
+          program = "${blueshell}/bin/my-blueshell";
+        };
+        default = {
+          type = "app";
+          program = "${blueshell}/bin/my-blueshell";
+        };
       };
     };
   };

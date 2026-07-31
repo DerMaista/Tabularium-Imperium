@@ -19,8 +19,10 @@ Rectangle {
 
     Process {
         id: netProc
-        // Depenency: iwgetid (from wireless-tools package)
-        command: ["sh", "-c", "iwgetid -r || echo 'OFFLINE'"]
+        // Dependency: nmcli (from NetworkManager package)
+        // iwgetid/iwconfig (wireless-tools) rely on the legacy WEXT ioctl, which
+        // modern nl80211-only WiFi drivers don't support - nmcli works regardless.
+        command: ["sh", "-c", "nmcli -t -f active,ssid dev wifi | awk -F: '$1==\"yes\"{print $2; f=1} END{if (!f) print \"OFFLINE\"}'"]
         running: true
         stdout: SplitParser {
             onRead: data => {

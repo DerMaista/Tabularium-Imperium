@@ -11,14 +11,24 @@ import qs.border
 Scope {
     id: root
 
-    Wallpaper {
-        id: wallpaper
-        screen: Quickshell.screens[0]
-    }
+    Variants {
+        id: wallpaperVariants
+        model: Quickshell.screens
 
-    Border {
-        id: border
-        topheight: wallpaper.topheight
-        screen: Quickshell.screens[0]
+        Scope {
+            id: monitor
+            required property var modelData
+
+            Wallpaper {
+                id: wallpaper
+                screen: monitor.modelData
+            }
+
+            Border {
+                id: border
+                topheight: wallpaper.topheight
+                screen: monitor.modelData
+            }
+        }
     }
 }

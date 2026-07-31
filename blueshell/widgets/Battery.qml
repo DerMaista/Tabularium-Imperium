@@ -14,10 +14,13 @@ Rectangle {
 
     color: Colors.background
     border { width: strokeWidth; color: Colors.accent }
-    implicitWidth: content.implicitWidth + uniformMargin
-    implicitHeight: content.implicitHeight + uniformMargin
 
     property var mainBattery: UPower.displayDevice
+    readonly property bool hasBattery: !!root.mainBattery && root.mainBattery.isLaptopBattery
+
+    visible: root.hasBattery
+    implicitWidth: hasBattery ? content.implicitWidth + uniformMargin : 0
+    implicitHeight: hasBattery ? content.implicitHeight + uniformMargin : 0
 
     property string statusString: {
         if (!root.mainBattery) return "OMG error";

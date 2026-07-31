@@ -11,7 +11,6 @@ Rectangle {
 
     required property var screen
 
-    property int minWorkspaces: 9
     property int currentWorkspace: activeWorkspaceId
     property int activeWorkspaceId: 1
 
@@ -70,59 +69,37 @@ Rectangle {
         return map[n] ?? null;
     }
 
-    // Workspace Process - mmsg -w -t
+    // Workspace Process - mmsg watch all-tags
     Process {
         id: wsProc
-        command: ["sh", "-c", "mmsg -w -t"]
+        command: ["mmsg", "watch", "all-tags"]
         running: true
-        property var buffer: []
 
         stdout: SplitParser {
             onRead: data => {
                 if (!data) return
 
-                wsProc.buffer.push(data.trim())
+                var parsed
+                try {
+                    parsed = JSON.parse(data)
+                } catch (e) {
+                    return
+                }
 
-                // Filter for tag lines matching: "MONITORNAME tag TAGNUM ACTIVE CLIENTS FOCUSED"
-                var tagLines = wsProc.buffer.filter(line => line.match(/^\S+ tag \d+ \d+ \d+ \d+/))
+                var monitor = parsed.all_tags.find(m => m.monitor === root.screen.name)
+                if (!monitor) return
 
-                if (tagLines.length >= root.minWorkspaces) {
-                    // Find max tag number
-                    var maxTag = Math.max(...tagLines.map(line => parseInt(line.match(/tag (\d+)/)[1])))
-                    var states = []
+                wsModel.clear()
+                for (var tag of monitor.tags) {
+                    wsModel.append({
+                        id: tag.index,
+                        active: tag.is_active,
+                        clients: tag.client_count
+                    })
 
-
-                    for (var i = 0; i < maxTag; i++)
-                        states[i] = { active: 0, clients: 0, focused: 0 }
-
-                    // Parse each tag line
-                    for (var line of tagLines) {
-                        var match = line.match(/^\S+ tag (\d+) (\d+) (\d+) (\d+)/)
-                        if (match) {
-                            var idx = parseInt(match[1]) - 1
-                            states[idx].active = parseInt(match[2])
-                            states[idx].clients = parseInt(match[3])
-                            states[idx].focused = parseInt(match[4])
-
-                            // Update active workspace from focused tag
-                            if (parseInt(match[4]) === 1) {
-                                activeWorkspaceId = parseInt(match[1])
-                            }
-                        }
+                    if (tag.is_active) {
+                        activeWorkspaceId = tag.index
                     }
-
-                    // Update the model
-                    wsModel.clear()
-                    for (var i = 1; i <= maxTag; i++) {
-                        wsModel.append({
-                            id: i,
-                            focused: states[i - 1].focused === 1,
-                            active: states[i - 1].active === 1,
-                            clients: states[i - 1].clients
-                        })
-                    }
-
-                    wsProc.buffer = []
                 }
             }
         }
@@ -178,7 +155,7 @@ Rectangle {
                     hoverEnabled: true
                     onClicked: {
                         if (activeWorkspaceId !== id) {
-                            Quickshell.execDetached(["mmsg", "-st", String(id)])
+                            Quickshell.execDetached(["mmsg", "dispatch", `view,${id},0`])
                         }
                     }
                     onEntered: {
