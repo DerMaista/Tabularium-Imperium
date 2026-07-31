@@ -1,7 +1,7 @@
 { pkgs }:
 
 let
-  runtimeDeps = [ pkgs.playerctl ];
+  runtimeDeps = [ pkgs.playerctl pkgs.upower ];
 in
 pkgs.stdenv.mkDerivation {
   pname = "my-blueshell";

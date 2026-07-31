@@ -10,7 +10,8 @@
   flake-parts.lib.mkFlake { inherit inputs; } {
 
     flake = {
-      hmModules.tabularium-imperium = import ./modules/tabularium-imperium.nix;
+      hmModules.default = import ./modules/tabularium-imperium.nix;
+      nixosModules.default = import ./modules/services.nix;
     };
 
     systems = [
