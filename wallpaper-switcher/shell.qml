@@ -4,7 +4,6 @@ import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import Qt.labs.folderlistmodel
 
 import qs.config
 
@@ -19,18 +18,42 @@ PanelWindow {
     focusable: true
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
-    property var coords: generateHexDisk(folderModel.count)
+    property var wallpapers: []
+    property var coords: generateHexDisk(wallpapers.length)
+    property bool applying: false
 
-    Connections {
-        target: folderModel
-        function onCountChanged() {
-            root.rebuildCoords()
+    Process {
+        id: scanProcess
+        running: false
+        command: ["sh", "-c",
+            "find " + shellQuote(Config.wallpaperDir) +
+            " -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.png' \\) 2>/dev/null | sort"]
+
+        stdout: StdioCollector {
+            id: scanCollector
+        }
+
+        onExited: (exitCode) => {
+            root.wallpapers = scanCollector.text.trim().split("\n").filter(s => s.length > 0)
+            console.log("[wallpaper-switcher] scan done:", root.wallpapers.length, "files — exit:", exitCode)
         }
     }
 
-    function rebuildCoords() {
-        coords = generateHexDisk(folderModel.count)
+    Connections {
+        target: Config
+        function onWallpaperDirChanged() {
+            if (Config.wallpaperDir) {
+                console.log("[wallpaper-switcher] wallpaperDir:", Config.wallpaperDir)
+                console.log("[wallpaper-switcher] wallpaperCmd:", Config.wallpaperCmd)
+                scanProcess.running = true
+            }
+        }
     }
+
+    function shellQuote(s) {
+        return "'" + s.replace(/'/g, "'\\''") + "'"
+    }
+
     function generateHexDisk(count) {
         const results = []
 
@@ -100,7 +123,31 @@ PanelWindow {
     Process {
         id: applyWallpaperProcess
         property string targetPath: ""
-        command: [ "sh", "-c", "notify-send 'Applying wallpaper' '" + targetPath + "' && " + Config.wallpaperCmd + " '" + targetPath + "'" ]
+        command: [ "sh", "-c", Config.wallpaperCmd + " " + shellQuote(targetPath) ]
+
+        onRunningChanged: {
+            if (running) {
+                console.log("[wallpaper-switcher] applying wallpaper:", targetPath)
+                console.log("[wallpaper-switcher] full command:", command.join(" "))
+            }
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            console.log("[wallpaper-switcher] process exited — code:", exitCode, "status:", exitStatus)
+            if (exitCode !== 0)
+                console.warn("[wallpaper-switcher] wallpaperCmd failed for path:", targetPath)
+            // Quit ONLY after the command has fully finished, otherwise tearing
+            // down the QML engine kills the child process mid-run (matugen etc.).
+            Qt.quit()
+        }
+
+        stdout: SplitParser {
+            onRead: data => console.log("[wallpaper-switcher] stdout:", data)
+        }
+
+        stderr: SplitParser {
+            onRead: data => console.warn("[wallpaper-switcher] stderr:", data)
+        }
     }
 
     Rectangle {
@@ -120,10 +167,10 @@ PanelWindow {
             Qt.quit()
         }
         onActiveFocusChanged: {
-
-            if (!activeFocus)
-            Qt.quit()
-
+            // Don't close on focus loss while a wallpaper apply is in flight —
+            // that would kill the child process before it finishes.
+            if (!activeFocus && !root.applying)
+                Qt.quit()
         }
     }
 
@@ -150,13 +197,12 @@ PanelWindow {
         property real offsetY: bounds.minY
 
         Repeater {
-            model: folderModel
+            model: root.coords.length
 
             delegate: Hex {
-                property bool valid: index < root.coords.length
-                visible: valid
+                id: hexDelegate
 
-                property var cube: valid ? root.coords[index] : ({ q: 0, r: 0 })
+                property var cube: index < root.coords.length ? root.coords[index] : ({ q: 0, r: 0 })
 
                 property real q: cube.q
                 property real r: cube.r
@@ -169,14 +215,24 @@ PanelWindow {
 
                 y: (hexGrid.height - (hexGrid.bounds.maxY - hexGrid.bounds.minY)) / 2 + (p.y - hexGrid.offsetY) - hexGrid.hexRadius * 1
 
-                wallpaperPath: filePath
+                // Reactive binding: re-evaluates whenever root.wallpapers changes,
+                // so a tile can never get stuck empty from a load-timing gap.
+                wallpaperPath: (index >= 0 && index < root.wallpapers.length)
+                    ? (root.wallpapers[index] || "")
+                    : ""
 
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
-                        applyWallpaperProcess.targetPath = wallpaperPath
+                        if (root.applying) return
+                        // Use the tile's own resolved path — the exact value the
+                        // image rendered — rather than re-indexing the array.
+                        const path = hexDelegate.wallpaperPath
+                        console.log("[wallpaper-switcher] clicked hex index:", index, "path:", JSON.stringify(path))
+                        if (!path) return
+                        root.applying = true
+                        applyWallpaperProcess.targetPath = path
                         applyWallpaperProcess.running = true
-                        Qt.quit()
                     }
                 }
 
@@ -188,12 +244,5 @@ PanelWindow {
                 }
             }
         }
-    }
-
-    FolderListModel {
-        id: folderModel
-        folder: "file://" + Config.wallpaperDir || ""
-        nameFilters: ["*.png", "*.jpg"]
-        showDirs: false
     }
 }

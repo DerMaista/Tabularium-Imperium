@@ -99,7 +99,7 @@ PanelWindow {
         { icon: "", action: "systemctl poweroff" },                    // Shutdown
         { icon: "", action: "loginctl kill-session $XDG_SESSION_ID" }, // Logout
         { icon: "", action: "systemctl suspend" },                     // Suspend
-        { icon: "󰒲", action: "systemctl hibernate" }                   // Hibernate
+        { icon: "󰒲", action: "systemctl hibernate" }                    // Hibernate
     ]
 
     function runCommand(cmd) {

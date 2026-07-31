@@ -8,6 +8,11 @@
 
   outputs = inputs@{ flake-parts, ... }:
   flake-parts.lib.mkFlake { inherit inputs; } {
+
+    flake = {
+      hmModules.tabularium-imperium = import ./modules/tabularium-imperium.nix;
+    };
+
     systems = [
       "x86_64-linux"
       "aarch64-linux"

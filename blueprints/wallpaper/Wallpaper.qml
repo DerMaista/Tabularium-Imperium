@@ -73,7 +73,7 @@ Scope {
                     sourceSize.width: parent.width
                     sourceSize.height: parent.height
 
-                    source: Qt.resolvedUrl("../svgs/enterprise.svg")
+                    source: Qt.resolvedUrl("../svgs/enterprise\ copy.svg")
                     visible: false
                 }
 
