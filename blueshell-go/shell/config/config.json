@@ -1,0 +1,32 @@
+{
+    "bar": {
+        "height": 35
+    },
+    "text": {
+        "fontfamily": "NerdFont Mono",
+        "fontsize": 14
+    },
+    "notifications": {
+        "timeout": 5000,
+        "historyLimit": 100,
+        "popupLimit": 5
+    },
+    "animation": {
+        "colorDuration": 400,
+        "colorEasing": "OutCubic",
+        "colorBezier": []
+    },
+    "theme": {
+        "command": "chromarium-mechanicus",
+        "configFile": "",
+        "templateFile": "",
+        "templatesDir": ""
+    },
+    "power": {
+        "lockCommand": "swaylock"
+    },
+    "wallpaper_switcher": {
+        "wallpaperDir": "/home/christoph/.dotfiles/modules/style/wallpapers",
+        "wallpaperCmd": "switch-wallpaper"
+    }
+}

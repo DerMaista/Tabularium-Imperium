@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    chromarium-mechanicus = {
+      url = "github:DerMaista/Chromarium-Mechanicus"; # https://github.com/DerMaista/Chromarium-Mechanicus
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs@{ flake-parts, ... }:
@@ -21,7 +25,7 @@
 
     perSystem = { pkgs, ... }:
       let
-        blueshell = import ./packages/blueshell.nix { inherit pkgs; };
+        blueshell = import ./packages/blueshell.nix { inherit pkgs inputs; };
       in {
       packages = {
         quickshell-bar = import ./packages/bar.nix { inherit pkgs; };
@@ -36,11 +40,13 @@
       apps = {
         blueshell = {
           type = "app";
-          program = "${blueshell}/bin/my-blueshell";
+          program = "${blueshell}/bin/blueshell";
+          meta.description = "The blueshell desktop: a Go backend daemon and a quickshell UI";
         };
         default = {
           type = "app";
-          program = "${blueshell}/bin/my-blueshell";
+          program = "${blueshell}/bin/blueshell";
+          meta.description = "The blueshell desktop: a Go backend daemon and a quickshell UI";
         };
       };
     };
