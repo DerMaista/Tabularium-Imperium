@@ -51,7 +51,17 @@ PanelWindow {
 
             anchors.centerIn: parent
 
-            width: Math.min(keyScope.width * 0.6, 760)
+            readonly property real maxWidth: Math.min(keyScope.width * 0.6, 760)
+            readonly property real cardWidth: Math.floor((panel.maxWidth - root.uniformMargin * 4) / 3)
+            readonly property int columns: {
+                const count = ThemeService.themes.length;
+                if (count === 0)
+                    return 3;
+                const rows = Math.ceil(count / 3);
+                return Math.ceil(count / rows);
+            }
+
+            width: Math.min(panel.maxWidth, Math.ceil(panel.columns * panel.cardWidth + (panel.columns + 1) * root.uniformMargin))
             implicitHeight: layout.implicitHeight + root.uniformMargin * 2
 
             color: Colors.background
@@ -78,8 +88,11 @@ PanelWindow {
                 Item {
                     width: parent.width
                     height: title.implicitHeight
+                    visible: title.text !== ""
 
                     Text {
+                        id: title
+
                         anchors.right: parent.right
                         color: Colors.accent
                         opacity: 0.6
@@ -132,13 +145,17 @@ PanelWindow {
                             readonly property bool isSelected: card.index === ThemeService.selectedIndex
                             readonly property bool isCurrent: card.modelData.name === ThemeService.current
 
-                            width: (layout.width - root.uniformMargin * 2) / 3
+                            readonly property color themeBackground: card.modelData.background || Colors.background
+                            readonly property color themePrimary: card.modelData.primary || Colors.primary
+                            readonly property color themeAccent: card.modelData.accent || Colors.accent
+
+                            width: panel.cardWidth
                             height: cardBody.implicitHeight + root.uniformMargin
 
-                            color: card.modelData.background
+                            color: card.themeBackground
                             border {
                                 width: card.isSelected ? root.strokeWidth * 2 : root.strokeWidth
-                                color: card.isSelected ? Colors.primary : Colors.accent
+                                color: card.isSelected ? card.themePrimary : card.themeAccent
                             }
 
                             opacity: ThemeService.applying ? 0.5 : 1.0
@@ -168,7 +185,7 @@ PanelWindow {
                                 Text {
                                     width: parent.width
                                     text: (card.isCurrent ? "▸ " : "") + card.modelData.name.toUpperCase()
-                                    color: card.modelData.primary
+                                    color: card.themePrimary
                                     font.pixelSize: Config.fontsize
                                     font.family: Config.fontfamily
                                     elide: Text.ElideRight
@@ -178,7 +195,7 @@ PanelWindow {
                                     spacing: root.uniformMargin / 4
 
                                     Repeater {
-                                        model: [card.modelData.background, card.modelData.primary, card.modelData.accent]
+                                        model: [card.themeBackground, card.themePrimary, card.themeAccent]
 
                                         delegate: Rectangle {
                                             required property var modelData
@@ -188,7 +205,7 @@ PanelWindow {
                                             color: modelData
                                             border {
                                                 width: 1
-                                                color: card.modelData.accent
+                                                color: card.themeAccent
                                             }
                                         }
                                     }
@@ -196,7 +213,7 @@ PanelWindow {
 
                                 Text {
                                     text: card.modelData.mode.toUpperCase()
-                                    color: card.modelData.accent
+                                    color: card.themeAccent
                                     font.pixelSize: Config.fontsize * 0.8
                                     font.family: Config.fontfamily
                                 }

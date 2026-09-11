@@ -18,6 +18,8 @@ Singleton {
 
     property bool pickerOpen: false
 
+    property bool pendingOpen: false
+
     property int selectedIndex: 0
 
     function moveSelection(delta) {
@@ -42,15 +44,19 @@ Singleton {
         if (!root.available)
             return;
         root.refresh();
-        root.pickerOpen = true;
+        if (root.themes.length > 0)
+            root.pickerOpen = true;
+        else
+            root.pendingOpen = true;
     }
 
     function closePicker() {
+        root.pendingOpen = false;
         root.pickerOpen = false;
     }
 
     function togglePicker() {
-        if (root.pickerOpen)
+        if (root.pickerOpen || root.pendingOpen)
             root.closePicker();
         else
             root.openPicker();
@@ -66,12 +72,16 @@ Singleton {
             if (response.error) {
                 root.error = response.error;
                 root.themes = [];
-                return;
+            } else {
+                root.error = "";
+                root.themes = response.result.themes || [];
+                root.current = response.result.current || "";
+                root.selectCurrent();
             }
-            root.error = "";
-            root.themes = response.result.themes || [];
-            root.current = response.result.current || "";
-            root.selectCurrent();
+            if (root.pendingOpen) {
+                root.pendingOpen = false;
+                root.pickerOpen = true;
+            }
         });
     }
 
@@ -103,6 +113,7 @@ Singleton {
 
         function onLinkDown() {
             root.themes = [];
+            root.pendingOpen = false;
             root.pickerOpen = false;
         }
     }

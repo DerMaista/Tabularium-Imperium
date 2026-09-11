@@ -20,7 +20,7 @@ import (
 
 const (
 	shellConfigDirName = "tabularium-imperium"
-	themeAppDirName    = "blueshell"
+	themeAppDirName    = "chromarium-mechanicus"
 	themeSpawnTimeout  = 10 * time.Second
 	themeWaitDelay     = 500 * time.Millisecond
 )
@@ -70,9 +70,9 @@ type chromaTheme struct {
 	Mode      string `json:"mode"`
 	Wallpaper string `json:"wallpaper"`
 	Colors    struct {
-		Background   string `json:"background"`
-		BackgroundOn string `json:"background_on"`
-		Primary      string `json:"primary"`
+		Background string `json:"background"`
+		Primary    string `json:"primary"`
+		Accent     string `json:"accent"`
 	} `json:"colors"`
 }
 
@@ -222,8 +222,8 @@ func (t *themeManager) ensureTemplates() error {
 
 const defaultColorTemplate = `{
     "background": "{{.Colors.Background}}",
-    "primary": "{{.Colors.BackgroundOn}}",
-    "accent": "{{.Colors.Primary}}"
+    "primary": "{{.Colors.Primary}}",
+    "accent": "{{.Colors.Accent}}"
 }
 `
 
@@ -274,8 +274,8 @@ func (t *themeManager) list() ([]map[string]any, error) {
 			"name":       name,
 			"mode":       parsed.Mode,
 			"background": parsed.Colors.Background,
-			"primary":    parsed.Colors.BackgroundOn,
-			"accent":     parsed.Colors.Primary,
+			"primary":    parsed.Colors.Primary,
+			"accent":     parsed.Colors.Accent,
 			"wallpaper":  parsed.Wallpaper,
 		})
 	}
