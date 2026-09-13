@@ -1,6 +1,5 @@
-- nixos hm module for Chromatic
 - screen brightness widget + muted state for volume widget / osd
 - add trayicon widget
 - implement lockscreen with qs
 - install nixos on laptop
-- improve theme picker UI
+- add a way to change svg wallpaper with ui

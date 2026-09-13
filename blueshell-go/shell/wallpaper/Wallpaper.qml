@@ -69,7 +69,7 @@ Scope {
                     sourceSize.width: parent.width
                     sourceSize.height: parent.height
 
-                    source: Qt.resolvedUrl("../svgs/Flag_of_Ecocommunist_Europe.svg")
+                    source: Qt.resolvedUrl("../svgs/NixOS.svg")
                     visible: false
                 }
 
