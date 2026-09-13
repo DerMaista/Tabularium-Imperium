@@ -3,3 +3,4 @@
 - implement lockscreen with qs
 - install nixos on laptop
 - add a way to change svg wallpaper with ui
+- add homeManager module for Tabilarium-Imperium

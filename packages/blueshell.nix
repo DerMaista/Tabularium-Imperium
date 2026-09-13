@@ -7,7 +7,7 @@ pkgs.buildGoModule {
   pname = "blueshell";
   version = "2.0";
 
-  src = pkgs.lib.cleanSource ../blueshell-go;
+  src = pkgs.lib.cleanSource ../src;
 
   # `nix build` will tell you the correct value if this ever goes stale:
   # set it to lib.fakeHash, build, and copy the hash from the error.

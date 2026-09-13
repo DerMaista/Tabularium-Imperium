@@ -8,9 +8,5 @@
   },
   "notifications": {
     "timeout": 5000
-  },
-  "wallpaper_switcher": {
-    "wallpaperDir": "/home/christoph/.dotfiles/modules/style/wallpapers",
-    "wallpaperCmd": "switch-wallpaper"
   }
 }
