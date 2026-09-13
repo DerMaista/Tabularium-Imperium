@@ -28,12 +28,6 @@
         blueshell = import ./packages/blueshell.nix { inherit pkgs inputs; };
       in {
       packages = {
-        quickshell-bar = import ./packages/bar.nix { inherit pkgs; };
-        quickshell-notification-daemon =
-          import ./packages/notification-daemon.nix { inherit pkgs; };
-        quickshell-wallpaper-switcher =
-          import ./packages/wallpaper-switcher.nix { inherit pkgs; };
-
         inherit blueshell;
       };
 
