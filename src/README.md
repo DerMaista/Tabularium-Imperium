@@ -69,8 +69,8 @@ one of the underrated wins of the split.
 ## Layout
 
 ```
-main.go              CLI: run / restart / kill / serve / call / theme / logout / notifications
-uiipc.go             `theme`, `logout`, `notifications`: qs ipc into the running UI
+main.go              CLI: run / restart / kill / serve / call / theme / logout / notifications / lock / sigil
+uiipc.go             `theme`, `logout`, `notifications`, `lock`, `sigil`: qs ipc into the UI
 shellembed.go        go:embed of shell/, extracted read-only at startup
 desktopentry.go      writes the XDG desktop entry the xdg portal resolves QS_APP_ID against
 blueshell.nix        replaces packages/blueshell.nix
@@ -78,24 +78,27 @@ theming/             Chromarium template, themes, and the integration guide
 internal/backend/
   backend.go         ipc.Server + Mux wiring, capabilities, snapshot replay
   metrics.go         /proc/stat, /proc/meminfo, statfs, /proc/uptime + the sampler
-  mango.go           compositor socket: tag watch (deduped) and dispatch
+  mango.go           compositor socket: tag watch (deduped), dispatch, window rects
   network.go         NetworkManager over D-Bus, debounced
   clock.go           minute-aligned tick
   theme.go           theme enumeration + the Chromarium spawn
   power.go           logind: what the machine can do, and doing it
+  sigil.go           which SVG the wallpaper draws, and where the SVGs are
+  lock.go            the locked flag, logind Lock, LockedHint, the sleep inhibitor
 shell/
   shell.qml          entry point: pragmas, screen Variants, Binding, IpcHandler
   services/          BackendService (transport) + one thin service per topic,
                      plus NotificationService, which talks to no backend at all
-  modals/            ThemePicker.qml, LogoutPanel.qml — the two overlays
+  modals/            ThemePicker.qml, SigilPicker.qml, LogoutPanel.qml
   notifications/     the toast stack, the centre, and the card they share
+  lock/              the lock surface, its preview, and the flyout
   widgets/           Chip, ChipText, and the widgets
   wallpaper/         Wallpaper.qml; BlueprintGrid.qml (now a shader)
   border/            Border.qml (verbatim from the original)
   config/            Colors.qml, Config.qml (XDG-based, defaults, palette fade)
                      colors.json + config.json reference copies
   shaders/           color_swap.frag (unchanged) + blueprint_grid.frag (new)
-  svgs/              unchanged
+  svgs/              the built-in sigils, listed alongside your own at runtime
 ```
 
 ## How the two halves talk
@@ -131,12 +134,14 @@ out loud when the halves are genuinely mismatched.
 **Methods.** `getServerInfo`, `metrics.get`, `metrics.configure`,
 `workspaces.get`, `workspaces.dispatch`, `network.get`, `clock.get`,
 `theme.list`, `theme.apply`, `theme.current`, `power.list`, `power.invoke`,
+`workspaces.clients`, `lock.status`, `lock.lock`, `lock.state`,
+`sigil.list`, `sigil.apply`, `sigil.current`,
 `ping`, `subscribe`, `unsubscribe`.
 
 **Events.** `{"event":"<topic>","data":{…}}` on `metrics`, `workspaces`,
-`network`, `clock`, `theme`. The QML side fans them out to per-topic Qt signals, so one
-socket read updates exactly the widgets that care and nothing parses the same
-JSON twice.
+`network`, `clock`, `theme`, `lock`, `sigil`. The QML side fans them out to
+per-topic Qt signals, so one socket read updates exactly the widgets that care
+and nothing parses the same JSON twice.
 
 ## The mechanisms worth knowing about
 
@@ -342,12 +347,8 @@ no dependency on `systemctl` being on `PATH` — and the request is carried out 
 logind rather than by a process that is about to be killed by what it just asked
 for.
 
-`lock` is the exception, because logind's `LockSession` only emits a signal for
-a locker that is already listening and swaylock does not listen. So blueshell
-starts the locker itself: `power.lockCommand` in `config.json`, `swaylock` by
-default, split on spaces rather than handed to a shell, and started with its own
-session id so that restarting the shell cannot take the lock screen down with
-it.
+`lock` is the exception, because it is not logind's job: it hands off to the
+lock screen below, which blueshell draws itself. It used to spawn `swaylock`.
 
 **Buttons the machine will refuse are dimmed, and say why.** `power.list` asks
 logind `CanReboot` / `CanPowerOff` / `CanSuspend` / `CanHibernate`, each of which
@@ -486,6 +487,249 @@ shell shows no notifications at all. `packages/notification-daemon.nix` and the
 now redundant; drop them, and drop `my-notification-daemon` from whatever
 starts it, before running this.
 
+## The lock screen
+
+`~/repos/qstest` was a prototype: three files, a Catppuccin rectangle with a
+password box, and one genuinely good idea. It is now `shell/lock/` plus
+`services/LockService.qml` and `internal/backend/lock.go`, and `swaylock` is
+gone — along with `power.lockCommand`, which nothing reads any more.
+
+The lock is `ext-session-lock-v1` through `WlSessionLock`, so the compositor
+itself refuses to show anything else while it is up. That is a stronger promise
+than an overlay window can make, and it is why the old `power.lockCommand`
+indirection is not worth keeping.
+
+**Authority is split the way everything else here is split: D-Bus in Go,
+Wayland in QML.**
+
+| | owns |
+|---|---|
+| `internal/backend/lock.go` | whether the session is *supposed* to be locked, logind's `Lock` signal, `LockedHint`, the sleep inhibitor |
+| `services/LockService.qml` | `WlSessionLock`, the PAM conversation, the idle watch, the flyout |
+
+**The backend flag is not the security boundary.** PAM and the compositor are.
+Anything running as you can reach the backend socket, so there is deliberately
+no method out there that unlocks anything — the UI unlocks only on
+`PamResult.Success`, and then *reports* that it did. Clearing the flag by hand
+cannot open the screen. For the same reason the backend acts on logind's `Lock`
+signal and ignores `Unlock`: `loginctl unlock-session` must not drop the screen
+without a password, and it logs a line saying so rather than obeying.
+
+What the flag is for is getting back in. `shellapp` supervises quickshell, so a
+UI that dies while locked is restarted — and without a flag out here it would
+come back to a bare desktop. It is a file, `~/.local/state/blueshell/locked`,
+and its *existence* is the state: a half-written file still reads as locked,
+which is the direction to fail in.
+
+**Suspend is a logind inhibitor, not a wrapper script.** The old
+`lock-suspend` was `swaylock & systemctl suspend`, which is a race — and loses
+whenever swaylock is slower than logind. The backend holds an
+`Inhibit("sleep", …, "delay")` lock, and on `PrepareForSleep` it locks, waits up
+to 3s for the UI to confirm the screen is actually covered, then releases. That
+covers suspend from *any* source — the lid, `systemctl suspend`, the logout
+panel — so there is no script to call and nothing to remember to call it.
+
+`secure` is what it waits on, and it is not the same thing as `locked`:
+`locked` is what we asked for, `secure` is the compositor confirming the screen
+is covered. The gap between them is exactly the window in which a race would
+otherwise put your desktop on screen.
+
+### The flyout
+
+Before the lock engages, every window on every monitor flies off the nearest
+edge. Each output is screencopied once, each window's rectangle is cut out of
+that one texture with a `ShaderEffectSource`, and the copies are animated out —
+staggered by 60 ms, alternately tilted, `InBack` with an overshoot so they lean
+back before they go.
+
+Nothing real moves. A Wayland client cannot move another client's window —
+there is no protocol for it — so this is a picture of your desktop leaving while
+the actual windows sit still underneath.
+
+Three things changed on the way in from the prototype:
+
+- **The window rectangles come from the backend.** The prototype ran
+  `mmsg get all-clients` through a QML `Process` on every lock. The backend
+  already holds the compositor socket open, so it is a `workspaces.clients`
+  call now, filtered to visible and un-minimised windows in Go. That was the
+  last `Process` spawn left in the QML.
+- **The overlays no longer register themselves.** The prototype pushed each
+  overlay into a JS array from `Component.onCompleted`, which goes wrong the
+  moment `Variants` re-instantiates on a monitor hotplug. The service emits a
+  `flyOut` signal and the overlays listen; nothing keeps a list.
+- **It only plays for a lock you asked for.** An idle lock or a pre-sleep lock
+  skips it. There is nobody watching, and before sleep it would sit in front of
+  the thing that has to happen.
+
+  Which is why the `lock` event carries a **`source`** — `user`, `logind`,
+  `sleep` or `ui`. Every lock reaches the UI through the same one handler, so
+  without it there is no way to tell a keybind from a suspend, and the first
+  cut of this animated on exactly nothing: every call site passed "do not
+  animate" because that was the only safe default when the reason was unknown.
+  `user` and `logind` animate; `sleep` and a replay-on-reconnect do not.
+
+The layer namespace is still the prototype's `qs-lock-flyout` rather than this
+shell's usual `blueshell-…`, because your mango config already carries the rule
+that makes it look right:
+
+```
+layerrule = noanim:1,noblur:1,layer_name:qs-lock-flyout
+```
+
+Without it the compositor runs its own open animation and blur over the top and
+fights this one. Rename both together or neither.
+
+### Getting it wrong safely
+
+A session lock is the one thing in this shell that can lock you out of your own
+machine, so there are two ways to run it that cannot:
+
+```bash
+blueshell lock preview     # the whole transition, engaging nothing
+blueshell lock verify      # runs the real PAM stack, unlocks nothing
+```
+
+`preview` plays the flyout and then draws the surface, because a preview that
+skips the animation is not previewing the thing you are working on. The flyout
+carries an *intent* — `lock` or `preview` — rather than ending in a hardcoded
+`engage()`, which is what lets the same animation lead somewhere harmless. A
+real lock arriving while a preview is mid-flight takes the animation over:
+wanting the screen locked always wins.
+
+`verify` is the one that matters, and it deliberately does not animate — it is
+a test of the PAM stack, not of the look. It asks for your password, runs the
+actual `PamContext` against the actual service, and tells you whether it
+answered, from a desktop you are still sitting at. Failures there do not count
+towards the lockout. Escape closes both.
+
+**PAM wants a service on NixOS.** `security.pam.services.blueshell = { };`,
+beside the `swaylock` one you already have. Add `enableGnomeKeyring = true` to
+match your `login` entry if you want unlocking to unlock the keyring too.
+
+Until you rebuild it still works: the service names are a chain,
+`blueshell` → `swaylock` → `login`, and the first one that starts wins. The
+`swaylock` stack is exactly a locker's — `pam_unix` then `pam_deny` — so an
+un-rebuilt machine is not shut out, just one line noisier in the log.
+
+That fallback has to happen where `start()` is called, not in `onError`, and
+this cost an evening. **A missing PAM service is not an error signal.**
+`start()` returns `false` and quickshell logs `config file "…" is not a file`;
+`error(StartFailed)` is never emitted. A fallback written in `onError` is
+unreachable code, and the only symptom is a lock screen that says PAM DID NOT
+START and will not let you in. The retry is a loop around `pam.config` and
+`pam.start()`, with the config set imperatively so the next attempt in the same
+call sees it rather than waiting for a binding to settle.
+
+**If the lock is ever stranded** — the UI dies in a way the supervisor cannot
+fix — `ext-session-lock` keeps the compositor locked with no client to type
+into. From a TTY (Ctrl+Alt+F2):
+
+```bash
+blueshell call lock.state '{"locked":false}'
+blueshell restart
+```
+
+### Configuration
+
+```json
+"lock": {
+    "idleTimeout": 300,
+    "flyout": true,
+    "maxFailures": 3,
+    "lockoutSeconds": 10,
+    "lockOnStartup": false
+}
+```
+
+`idleTimeout` is seconds, `0` turns idle locking off. The idle watch respects
+inhibitors, so a fullscreen video will not lock the screen out from under you.
+Past `maxFailures`, input is refused for `lockoutSeconds`, and each further
+group of failures costs longer than the last — one timer re-armed to the next
+whole second, not a timer per attempt.
+
+```bash
+blueshell lock              # or a compositor keybind
+blueshell lock --wait       # blocks until the screen is confirmed covered
+```
+
+There is no `blueshell lock unlock`, and that is not an oversight.
+
+### What it does not do
+
+No fingerprint, no inline reply to PAM prompts beyond the password, no media
+controls on the lock surface, and no separate grace period before the screen
+blanks. The palette has three colours, so a failed attempt is drawn with a
+doubled stroke rather than in red — the same way the logout panel marks a
+selection and a notification marks urgency.
+
+## The sigil
+
+The emblem in the middle of the wallpaper used to be one line of QML —
+`Qt.resolvedUrl("../svgs/NixOS.svg")` — so changing it meant editing the source
+and rebuilding. It is now picked at runtime, from a GUI built the same way the
+theme picker is.
+
+```bash
+blueshell sigil                  # list, with * on the current one
+blueshell sigil fox              # apply
+blueshell sigil toggle           # the GUI picker, for a keybind
+```
+
+**Only the name is stored.** The built-in SVGs live in the directory quickshell
+extracts from the binary, whose path is content-hashed — 
+`/run/user/1000/blueshell-shell/31c3946dad31ec10/svgs/` today, something else
+after the next rebuild. Storing a path would mean a wallpaper that went blank
+the first time you rebuilt. `~/.local/state/blueshell/current-sigil` holds
+`fox`, and the backend resolves that to a file on every request.
+
+**Two directories, user wins.** Built-ins come from the extracted tree; anything
+in your own directory is listed alongside them, and a user file overrides a
+built-in of the same name. So `NixOS.svg` of your own replaces the shipped one
+without touching the binary, and the list marks which is which:
+
+```
+  Metatrons_cube                   built-in
+  my-own                           user
+* NixOS                            user
+```
+
+Where that directory is, is configuration — the point being that your SVGs do
+not have to live in this repo:
+
+```json
+"sigil": {
+    "dir": "~/.dotfiles/svgs"
+}
+```
+
+Empty means `<configDir>/svgs`. `~` and `$VARS` are expanded, because a config
+file is exactly where you would type them and a literal `~` directory fails by
+quietly listing nothing; a relative path is taken against the config directory
+rather than the process's working directory, which is wherever the session
+happened to start. Like the `theme` section this is declared in `Config.qml` but
+read only in Go — the declaration exists so `writeAdapter()` round-trips the key
+instead of erasing it.
+
+Built-ins are always listed underneath, so pointing `dir` somewhere empty or
+misspelled leaves you with the shipped set rather than a blank wallpaper.
+
+**The picker previews properly.** Each card runs the SVG through
+`color_swap.frag` — the same shader the wallpaper uses — so a card is drawn in
+the live palette rather than in whatever colours the file happens to contain.
+Change the theme with the picker open and the cards cross-fade with everything
+else.
+
+**Names are validated by lookup, not by parsing.** `sigil.apply` matches the
+requested name against the list and uses the path from that entry, so there is
+no string to sanitise: `../../etc/passwd` is not rejected by a rule, it simply
+is not in the list.
+
+The fallback chain is worth knowing since it decides what you see at first
+paint: the remembered name, then `NixOS`, then whatever is first alphabetically.
+The QML has one more fallback under that — while the socket is still connecting
+`SigilService.source` is empty, and `Wallpaper.qml` draws the shipped `NixOS.svg`
+rather than leaving a hole in the middle of the screen.
+
 ## Things that changed behaviour (deliberately)
 
 - **`colors.json` and `config.json` moved to XDG.** `Colors.qml` used to
@@ -513,18 +757,25 @@ starts it, before running this.
 The old derivation put `playerctl`, `upower`, `networkmanager` and `procps` on
 `PATH`. None of them are needed now: `playerctl` and `procps` are gone
 entirely, and NetworkManager and UPower are spoken to over D-Bus. `mmsg` is no
-longer used either: the daemon dials the compositor's socket itself. Three
-binaries are still exec'd, none of them on a timer: `quickshell`, which is the
-UI; `chromarium-mechanicus`, only when you change a theme and only if it is
-installed; and the locker, only when you press LOCK. `systemctl` and `loginctl`
-are not among them — the logout panel talks to logind directly, so the shell
-works on a machine that ships neither.
+longer used either: the daemon dials the compositor's socket itself. `swaylock`
+has gone the same way now that the lock screen is drawn in-process, and with it
+the last `exec` that ran on a keypress.
+
+Two binaries are still exec'd, neither on a timer: `quickshell`, which is the
+UI, and `chromarium-mechanicus`, only when you change a theme and only if it is
+installed. `systemctl` and `loginctl` are not among them — the logout panel and
+the lock both talk to logind directly, so the shell works on a machine that
+ships neither.
+
+What the lock does need is a PAM service: `security.pam.services.blueshell` on
+NixOS. That is configuration rather than a runtime dependency, and the shell
+falls back to `login` and says so if it is missing.
 
 ## Not done
 
-- **Channel (B) is now used, minimally.** `shell.qml` exposes three `IpcHandler`
-  targets — `theme`, `logout` and `notifications` — so a keybind can open any of
-  the three overlays. There is still no Go client for quickshell's binary
+- **Channel (B) is now used, minimally.** `shell.qml` exposes four `IpcHandler`
+  targets — `theme`, `logout`, `notifications` and `lock` — so a keybind can
+  open any of the overlays. There is still no Go client for quickshell's binary
   protocol — `blueshell theme toggle` forks
   `qs -p <config> ipc call`, which is fast enough for a key that opens a modal,
   and reimplementing the wire format only pays off on keys you hold to repeat.
@@ -540,6 +791,9 @@ works on a machine that ships neither.
   separate cards; DMS groups them, and that is the next thing worth taking.
 - **`Config.wallpaperDir` / `wallpaperCmd`** are still unread, exactly as
   before — the wallpaper-switcher is a separate package in your repo.
+- **The lock has no fingerprint reader and no grace period.** DMS runs a second
+  `PamContext` on the `fprint` service alongside the password one; that is the
+  obvious next thing if you ever put a reader on this machine.
 - **The compositor client is mango-specific.** DMS abstracts behind a
   `CompositorService` with a backend per compositor; that is worth doing the
   day you run something other than mango, and not before.

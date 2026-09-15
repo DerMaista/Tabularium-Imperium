@@ -3,8 +3,6 @@ import QtQuick
 import qs.config
 import qs.services
 
-// The entry point to the centre, inverted while it is open — the same treatment
-// the power glyph beside it gets.
 Chip {
     id: root
 

@@ -217,12 +217,20 @@ func (m *mangoWatcher) handle(_ context.Context, w *ipc.ConnWriter, req ipc.Requ
 		}
 		ipc.Respond(w, req.ID, reply)
 
+	case "workspaces.clients":
+		clients, err := m.clients()
+		if err != nil {
+			ipc.RespondError(w, req.ID, err.Error())
+			return
+		}
+		ipc.Respond(w, req.ID, map[string]any{"clients": clients})
+
 	default:
 		ipc.RespondError(w, req.ID, "unknown method: "+req.Method)
 	}
 }
 
-func (m *mangoWatcher) dispatch(command string) (map[string]any, error) {
+func (m *mangoWatcher) converse(request string) ([]byte, error) {
 	path := mangoSocketPath()
 	if path == "" {
 		return nil, errors.New("compositor socket unavailable")
@@ -235,11 +243,15 @@ func (m *mangoWatcher) dispatch(command string) (map[string]any, error) {
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(mangoDialTimeout))
 
-	if _, err := fmt.Fprintf(conn, "dispatch %s\n", command); err != nil {
+	if _, err := fmt.Fprintf(conn, "%s\n", request); err != nil {
 		return nil, err
 	}
 
-	line, err := bufio.NewReader(conn).ReadBytes('\n')
+	return bufio.NewReader(conn).ReadBytes('\n')
+}
+
+func (m *mangoWatcher) dispatch(command string) (map[string]any, error) {
+	line, err := m.converse("dispatch " + command)
 	if err != nil {
 		return nil, err
 	}
@@ -249,6 +261,45 @@ func (m *mangoWatcher) dispatch(command string) (map[string]any, error) {
 		return nil, fmt.Errorf("compositor reply: %w", err)
 	}
 	return reply, nil
+}
+
+type mangoClient struct {
+	X           int    `json:"x"`
+	Y           int    `json:"y"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	Monitor     string `json:"monitor"`
+	IsVisible   bool   `json:"is_visible"`
+	IsMinimized bool   `json:"is_minimized"`
+}
+
+func (m *mangoWatcher) clients() ([]map[string]any, error) {
+	line, err := m.converse("get all-clients")
+	if err != nil {
+		return nil, err
+	}
+
+	var reply struct {
+		Clients []mangoClient `json:"clients"`
+	}
+	if err := json.Unmarshal(line, &reply); err != nil {
+		return nil, fmt.Errorf("compositor reply: %w", err)
+	}
+
+	out := make([]map[string]any, 0, len(reply.Clients))
+	for _, c := range reply.Clients {
+		if !c.IsVisible || c.IsMinimized {
+			continue
+		}
+		out = append(out, map[string]any{
+			"x":       c.X,
+			"y":       c.Y,
+			"width":   c.Width,
+			"height":  c.Height,
+			"monitor": c.Monitor,
+		})
+	}
+	return out, nil
 }
 
 func (m *mangoWatcher) info() map[string]any {

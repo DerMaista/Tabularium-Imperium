@@ -13,8 +13,6 @@ Item {
     ShaderEffect {
         anchors.fill: parent
 
-        // Names must match the uniform block in blueprint_grid.frag; Qt binds
-        // them by reflection.
         property color gridColor: root.gridColor
         property vector2d resolution: Qt.vector2d(width, height)
         property real gridSize: root.gridSize

@@ -18,6 +18,8 @@ const (
 	TopicNetwork    = "network"
 	TopicClock      = "clock"
 	TopicTheme      = "theme"
+	TopicLock       = "lock"
+	TopicSigil      = "sigil"
 )
 
 type Backend struct {
@@ -31,6 +33,8 @@ type Backend struct {
 	clock      *clockTicker
 	theme      *themeManager
 	power      *powerManager
+	lock       *lockManager
+	sigil      *sigilManager
 }
 
 func Boot(ctx context.Context) (*Backend, error) {
@@ -47,7 +51,9 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.network = newNetworkWatcher(bus)
 	b.clock = newClockTicker(bus)
 	b.theme = newThemeManager(bus)
-	b.power = newPowerManager()
+	b.lock = newLockManager(bus)
+	b.sigil = newSigilManager(bus)
+	b.power = newPowerManager(b.lock)
 
 	mux := ipc.NewMux()
 	mux.Handle("getServerInfo", b.handleServerInfo)
@@ -57,6 +63,8 @@ func Boot(ctx context.Context) (*Backend, error) {
 	mux.HandlePrefix("clock.", b.clock.handle)
 	mux.HandlePrefix("theme.", b.theme.handle)
 	mux.HandlePrefix("power.", b.power.handle)
+	mux.HandlePrefix("lock.", b.lock.handle)
+	mux.HandlePrefix("sigil.", b.sigil.handle)
 
 	b.srv = ipc.NewServer(ipc.Config{
 		AppName:    "blueshell",
@@ -65,7 +73,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 
 		CapabilitiesFunc: b.capabilities,
 
-		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme},
+		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil},
 
 		OnSubscribe: b.replaySnapshots,
 	}, mux.ServeIPC)
@@ -81,6 +89,8 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.clock.start(ctx)
 	b.theme.start(ctx)
 	b.power.start(ctx)
+	b.lock.start(ctx)
+	b.sigil.start(ctx)
 
 	go func() {
 		defer func() {
@@ -117,6 +127,12 @@ func (b *Backend) capabilities() []string {
 	if b.power.available() {
 		caps = append(caps, "power")
 	}
+	if b.lock.available() {
+		caps = append(caps, "lock")
+	}
+	if b.sigil.available() {
+		caps = append(caps, "sigil")
+	}
 	return caps
 }
 
@@ -134,6 +150,10 @@ func (b *Backend) replaySnapshots(topics []string, _ *ipc.Subscriber) {
 				b.clock.publishNow()
 			case TopicTheme:
 				b.theme.republish()
+			case TopicLock:
+				b.lock.republish()
+			case TopicSigil:
+				b.sigil.republish()
 			}
 		}
 	}()
@@ -149,6 +169,8 @@ func (b *Backend) handleServerInfo(_ context.Context, w *ipc.ConnWriter, req ipc
 		"network":      b.network.info(),
 		"theme":        b.theme.info(),
 		"power":        b.power.info(),
+		"lock":         b.lock.info(),
+		"sigil":        b.sigil.info(),
 	})
 }
 

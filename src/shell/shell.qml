@@ -2,8 +2,11 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 
 import qs.border
+import qs.config
+import qs.lock
 import qs.modals
 import qs.notifications
 import qs.services
@@ -16,6 +19,56 @@ ShellRoot {
         target: MetricsService
         property: "desktopVisible"
         value: WorkspaceService.minActiveClients === 0
+    }
+
+    WlSessionLock {
+        id: sessionLock
+
+        locked: LockService.shouldLock
+
+        WlSessionLockSurface {
+            id: lockSurface
+
+            color: Colors.background
+
+            LockSurface {
+                anchors.fill: parent
+                screen: lockSurface.screen
+            }
+        }
+    }
+
+    Binding {
+        target: LockService
+        property: "secure"
+        value: sessionLock.secure
+    }
+
+    IpcHandler {
+        target: "lock"
+
+        function preview(): string {
+            if (LockService.shouldLock)
+                return "LOCKED";
+            const wasOpen = LockService.previewing;
+            LockService.requestPreview();
+            return wasOpen ? "PREVIEW_CLOSED" : "PREVIEW_OPEN";
+        }
+
+        function verify(): string {
+            if (LockService.shouldLock)
+                return "LOCKED";
+            LockService.beginVerify();
+            return "VERIFY_OPEN";
+        }
+
+        function status(): string {
+            if (LockService.shouldLock)
+                return LockService.secure ? "LOCKED_SECURE" : "LOCKING";
+            if (LockService.previewing)
+                return "PREVIEW";
+            return "UNLOCKED";
+        }
     }
 
     IpcHandler {
@@ -49,6 +102,33 @@ ShellRoot {
 
         function status(): string {
             return ThemeService.current;
+        }
+    }
+
+    IpcHandler {
+        target: "sigil"
+
+        function toggle(): string {
+            if (!SigilService.available)
+                return "SIGIL_UNAVAILABLE";
+            SigilService.togglePicker();
+            return SigilService.pickerOpen ? "SIGIL_OPEN" : "SIGIL_CLOSED";
+        }
+
+        function show(): string {
+            if (!SigilService.available)
+                return "SIGIL_UNAVAILABLE";
+            SigilService.openPicker();
+            return "SIGIL_OPEN";
+        }
+
+        function hide(): string {
+            SigilService.closePicker();
+            return "SIGIL_CLOSED";
+        }
+
+        function status(): string {
+            return SigilService.current;
         }
     }
 
@@ -131,6 +211,14 @@ ShellRoot {
             }
 
             LazyLoader {
+                active: SigilService.pickerOpen
+
+                component: SigilPicker {
+                    screen: monitor.modelData
+                }
+            }
+
+            LazyLoader {
                 active: PowerService.panelOpen
 
                 component: LogoutPanel {
@@ -138,8 +226,6 @@ ShellRoot {
                 }
             }
 
-            // Only up while there is something in it, so an idle
-            // desktop carries no notification surface at all.
             LazyLoader {
                 active: NotificationService.popups.length > 0 && !NotificationService.centerOpen
 
@@ -155,6 +241,22 @@ ShellRoot {
                 component: NotificationCenter {
                     screen: monitor.modelData
                     topheight: wallpaper.topheight
+                }
+            }
+
+            LazyLoader {
+                active: LockService.flyoutActive
+
+                component: FlyoutOverlay {
+                    screen: monitor.modelData
+                }
+            }
+
+            LazyLoader {
+                active: LockService.previewing && !LockService.shouldLock
+
+                component: LockPreview {
+                    screen: monitor.modelData
                 }
             }
         }

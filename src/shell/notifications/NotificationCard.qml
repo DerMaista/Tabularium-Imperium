@@ -8,8 +8,6 @@ import Quickshell.Services.Notifications
 import qs.config
 import qs.services
 
-// One card, drawn the same way whether it is a toast in the corner or a row in
-// the centre. The two differ only in which of the flags below are set.
 Rectangle {
     id: root
 
@@ -27,15 +25,11 @@ Rectangle {
 
     readonly property bool critical: root.notification.urgency === NotificationUrgency.Critical
 
-    // The palette is three colours, so urgency cannot be a fourth. It is drawn
-    // the way the rest of the shell draws emphasis instead: a doubled stroke,
-    // and the accent used as a fill rather than as a line.
     readonly property real borderWidth: root.critical ? root.strokeWidth * 2 : root.strokeWidth
 
     readonly property string iconSource: {
         if (root.notification.image !== "")
             return root.notification.image;
-        // `check` makes a missing icon return "" rather than a path to nothing.
         if (root.notification.appIcon !== "")
             return Quickshell.iconPath(root.notification.appIcon, true);
         return "";
@@ -49,9 +43,6 @@ Rectangle {
         color: Colors.accent
     }
 
-    // Declared before the content on purpose: the action buttons and the close
-    // glyph sit above it, so they take their own clicks and only the rest of
-    // the card falls through to here.
     MouseArea {
         anchors.fill: parent
         enabled: root.clickable
@@ -77,8 +68,6 @@ Rectangle {
 
             visible: root.iconSource !== ""
             fillMode: Image.PreserveAspectFit
-            // Decoded at the size it is drawn at, not at whatever the sender
-            // happened to attach.
             sourceSize.width: Config.fontsize * 2
             sourceSize.height: Config.fontsize * 2
             source: root.iconSource
@@ -150,8 +139,6 @@ Rectangle {
                         id: closeArea
 
                         anchors.fill: parent
-                        // A one-character hit box is a poor target; this widens
-                        // it without moving the glyph.
                         anchors.margins: -root.strokeWidth * 2
                         hoverEnabled: true
 
@@ -169,9 +156,6 @@ Rectangle {
                 opacity: 0.75
                 font.pixelSize: Config.fontsize - 1
                 font.family: Config.fontfamily
-                // Plain, deliberately: `bodyMarkupSupported` is false, so an app
-                // that sends markup anyway gets it shown rather than rendered,
-                // and no <img> tag can fetch anything.
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
                 maximumLineCount: 6
@@ -187,9 +171,6 @@ Rectangle {
                 font.family: Config.fontfamily
             }
 
-            // The original daemon advertised `actionsSupported: true` and then
-            // never drew a single action, so an app's buttons silently did
-            // nothing. These make that claim true.
             Flow {
                 Layout.fillWidth: true
                 Layout.topMargin: root.strokeWidth

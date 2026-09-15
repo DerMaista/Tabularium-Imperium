@@ -14,13 +14,15 @@ Singleton {
     readonly property int expectedApiVersion: 1
     property bool connected: false
 
-    readonly property var topics: ["metrics", "workspaces", "network", "clock", "theme"]
+    readonly property var topics: ["metrics", "workspaces", "network", "clock", "theme", "lock", "sigil"]
 
     signal metricsEvent(var data)
     signal workspacesEvent(var data)
     signal networkEvent(var data)
     signal clockEvent(var data)
     signal themeEvent(var data)
+    signal lockEvent(var data)
+    signal sigilEvent(var data)
 
     signal linkUp
     signal linkDown
@@ -97,6 +99,12 @@ Singleton {
             break;
         case "theme":
             root.themeEvent(obj.data);
+            break;
+        case "lock":
+            root.lockEvent(obj.data);
+            break;
+        case "sigil":
+            root.sigilEvent(obj.data);
             break;
         }
     }

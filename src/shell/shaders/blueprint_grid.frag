@@ -1,6 +1,5 @@
 #version 440
 
-// Build (keep in sync with the .qsb committed next to it):
 //   qsb --glsl 100es,120,150 --hlsl 50 --msl 12 -o blueprint_grid.frag.qsb blueprint_grid.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;

@@ -19,14 +19,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Version is overridden at build time: -ldflags "-X main.Version=$(git describe)".
 var Version = "dev"
 
 const appID = "blueshell"
 
-// qsAppID is the identity quickshell gives the UI process: the Wayland app id
-// and the desktop entry name the xdg portal resolves. It must match the entry
-// ensureDesktopEntry writes.
 const qsAppID = "com.tabularium.blueshell"
 
 var shellApp = shellapp.New(shellapp.Config{
@@ -91,12 +87,12 @@ func main() {
 	root.AddCommand(themeCommand())
 	root.AddCommand(logoutCommand())
 	root.AddCommand(notificationsCommand())
+	root.AddCommand(lockCommand())
+	root.AddCommand(sigilCommand())
 
 	app.New(app.Info{Name: "blueshell", ID: appID, Version: Version}, root).Execute()
 }
 
-// logoutCommand deliberately does nothing on its own: `blueshell logout`
-// prints help rather than logging anyone out. The verb has to be typed.
 func logoutCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logout",
@@ -114,8 +110,6 @@ func logoutCommand() *cobra.Command {
 	return cmd
 }
 
-// notificationsCommand, like logoutCommand, needs its verb typed: bare
-// `blueshell notifications` prints help rather than clearing anything.
 func notificationsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "notifications",
@@ -130,6 +124,112 @@ func notificationsCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(notificationCenterCommands()...)
+
+	return cmd
+}
+
+func lockCommand() *cobra.Command {
+	var wait bool
+	var timeout time.Duration
+
+	cmd := &cobra.Command{
+		Use:          "lock",
+		SilenceUsage: true,
+		Short:        "Lock the session",
+		Long: "Raises the lock screen the running shell draws over every output.\n" +
+			"Unlocking needs your password: there is no unlock subcommand, because\n" +
+			"anything that could call one could also be a process that is not you.\n\n" +
+			"Suspend does not need this — the backend holds a logind sleep inhibitor\n" +
+			"and locks on its own before the machine goes down.",
+		Args: cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return withBackend(func(client *ipc.Client) error {
+				if _, err := callBackend(client, "lock.lock", nil); err != nil {
+					return err
+				}
+				if !wait {
+					return nil
+				}
+
+				deadline := time.Now().Add(timeout)
+				for time.Now().Before(deadline) {
+					status, err := callBackend(client, "lock.status", nil)
+					if err != nil {
+						return err
+					}
+					if secure, _ := status["secure"].(bool); secure {
+						return nil
+					}
+					time.Sleep(100 * time.Millisecond)
+				}
+				return fmt.Errorf("lock screen not confirmed within %s", timeout)
+			})
+		},
+	}
+
+	cmd.Flags().BoolVar(&wait, "wait", false, "Block until the lock screen is confirmed up")
+	cmd.Flags().DurationVar(&timeout, "timeout", 5*time.Second, "How long --wait waits")
+
+	cmd.AddCommand(lockScreenCommands()...)
+
+	return cmd
+}
+
+func sigilCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "sigil [name]",
+		SilenceUsage: true,
+		Short:        "List the SVGs the wallpaper can show, or pick one",
+		Long: "The emblem in the middle of the wallpaper. Built-in SVGs ship inside\n" +
+			"the binary; drop your own into ~/.config/tabularium-imperium/svgs and\n" +
+			"they appear alongside them, overriding a built-in of the same name.\n\n" +
+			"toggle, show and hide drive the GUI picker in the running shell.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return withBackend(func(client *ipc.Client) error {
+					result, err := callBackend(client, "sigil.list", nil)
+					if err != nil {
+						return err
+					}
+					current, _ := result["current"].(string)
+					sigils, _ := result["sigils"].([]any)
+					if len(sigils) == 0 {
+						fmt.Printf("no svgs found — put one in %v\n", result["userDir"])
+						return nil
+					}
+					for _, entry := range sigils {
+						sigil, ok := entry.(map[string]any)
+						if !ok {
+							continue
+						}
+						name, _ := sigil["name"].(string)
+						marker := " "
+						if name == current {
+							marker = "*"
+						}
+						origin := "user"
+						if builtin, _ := sigil["builtin"].(bool); builtin {
+							origin = "built-in"
+						}
+						fmt.Printf("%s %-32s %s\n", marker, name, origin)
+					}
+					return nil
+				})
+			}
+
+			return withBackend(func(client *ipc.Client) error {
+				result, err := callBackend(client, "sigil.apply", map[string]any{"name": args[0]})
+				if err != nil {
+					return err
+				}
+				fmt.Printf("%v\n", result["current"])
+				return nil
+			})
+		},
+	}
+
+	cmd.AddCommand(sigilPickerCommands()...)
 
 	return cmd
 }

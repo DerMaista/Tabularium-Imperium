@@ -11,20 +11,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Panels and pickers are UI state, not data, so they live behind quickshell's
-// own IPC — the `IpcHandler` targets in shell.qml — rather than the backend
-// socket. Reaching those needs the config dir of the running instance, and
-// blueshell's UI runs the QML extracted from the binary into a runtime dir, so a
-// bare `qs ipc call theme toggle` finds no config at all and dies with
-// `Could not find "default" config directory`. These subcommands supply the
-// path shellapp recorded when it launched the UI, so a compositor keybind is
-// just `blueshell theme toggle`, `blueshell logout toggle` or
-// `blueshell notifications toggle`.
+func sigilPickerCommands() []*cobra.Command {
+	return shellIPCCommands("sigil", [][2]string{
+		{"toggle", "Open the sigil picker in the running shell, or close it"},
+		{"show", "Open the sigil picker in the running shell"},
+		{"hide", "Close the sigil picker in the running shell"},
+	})
+}
+
 func themePickerCommands() []*cobra.Command {
 	return shellIPCCommands("theme", [][2]string{
 		{"toggle", "Open the theme picker in the running shell, or close it"},
 		{"show", "Open the theme picker in the running shell"},
 		{"hide", "Close the theme picker in the running shell"},
+	})
+}
+
+func lockScreenCommands() []*cobra.Command {
+	return shellIPCCommands("lock", [][2]string{
+		{"preview", "Play the lock animation and draw the screen without locking"},
+		{"verify", "Test the PAM stack by asking for your password, without locking"},
+		{"status", "Print what the lock screen in the running shell is doing"},
 	})
 }
 
@@ -46,7 +53,6 @@ func logoutPanelCommands() []*cobra.Command {
 	})
 }
 
-// shellIPCCommands builds one subcommand per {function, description} pair.
 func shellIPCCommands(target string, functions [][2]string) []*cobra.Command {
 	commands := make([]*cobra.Command, 0, len(functions))
 	for _, fn := range functions {
@@ -64,9 +70,6 @@ func shellIPCCommands(target string, functions [][2]string) []*cobra.Command {
 	return commands
 }
 
-// callShellIPC calls a function on one of shell.qml's IpcHandler targets.
-// quickshell's wire format is reimplemented nowhere: `qs ipc` is a fork per
-// keypress, which is affordable for a key that opens a modal.
 func callShellIPC(target, function string) error {
 	configPath, err := runningShellConfig()
 	if err != nil {
@@ -82,10 +85,6 @@ func callShellIPC(target, function string) error {
 	return nil
 }
 
-// runningShellConfig reads the config dir shellapp records beside the socket
-// for the duration of a run. Asking shellApp.ResolveConfig instead would
-// extract the embedded QML as a side effect when no UI is up, and then hand
-// back a path nothing is listening on.
 func runningShellConfig() (string, error) {
 	stateFile := filepath.Join(paths.New(appID).SocketDir(), appID+".path")
 

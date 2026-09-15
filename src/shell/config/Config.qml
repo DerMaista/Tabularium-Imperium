@@ -14,6 +14,11 @@ Singleton {
     property alias notificationsTimeout: notificationsConfig.timeout
     property alias notificationsHistoryLimit: notificationsConfig.historyLimit
     property alias notificationsPopupLimit: notificationsConfig.popupLimit
+    property alias lockIdleTimeout: lockConfig.idleTimeout
+    property alias lockFlyout: lockConfig.flyout
+    property alias lockMaxFailures: lockConfig.maxFailures
+    property alias lockoutSeconds: lockConfig.lockoutSeconds
+    property alias lockOnStartup: lockConfig.lockOnStartup
     property alias barHeight: barConfig.height
     property alias wallpaperDir: wallpaperConfig.wallpaperDir
     property alias wallpaperCmd: wallpaperConfig.wallpaperCmd
@@ -97,10 +102,21 @@ Singleton {
                 property string templatesDir: ""
             }
 
-            property JsonObject power: JsonObject {
-                id: powerConfig
+            property JsonObject sigil: JsonObject {
+                id: sigilConfig
+                property string dir: ""
+            }
 
-                property string lockCommand: "swaylock"
+            property JsonObject lock: JsonObject {
+                id: lockConfig
+
+                property int idleTimeout: 300
+
+                property bool flyout: true
+
+                property int maxFailures: 3
+                property int lockoutSeconds: 10
+                property bool lockOnStartup: false
             }
 
             property JsonObject wallpaper_switcher: JsonObject {

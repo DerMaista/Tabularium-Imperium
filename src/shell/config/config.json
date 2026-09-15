@@ -11,6 +11,16 @@
         "historyLimit": 100,
         "popupLimit": 5
     },
+    "sigil": {
+        "dir": ""
+    },
+    "lock": {
+        "idleTimeout": 300,
+        "flyout": true,
+        "maxFailures": 3,
+        "lockoutSeconds": 10,
+        "lockOnStartup": false
+    },
     "animation": {
         "colorDuration": 400,
         "colorEasing": "OutCubic",
@@ -21,9 +31,6 @@
         "configFile": "",
         "templateFile": "",
         "templatesDir": ""
-    },
-    "power": {
-        "lockCommand": "swaylock"
     },
     "wallpaper_switcher": {
         "wallpaperDir": "/home/christoph/.dotfiles/modules/style/wallpapers",

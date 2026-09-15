@@ -1,12 +1,11 @@
 {
-  "bar": {
-    "height": 35
-  },
-  "text": {
-    "fontfamily": "NerdFont Mono",
-    "fontsize": 14
-  },
-  "notifications": {
-    "timeout": 5000
+  "bar": { "height": 35 },
+  "text": { "fontfamily": "NerdFont Mono", "fontsize": 14 },
+  "notifications": { "timeout": 5000 },
+  "animation": { "colorDuration": 4000, "colorEasing": "OutCubic", "colorBezier": [] },
+  "idleTimeout": 600,
+  "sigil": {
+    "dir": "~/.dotfiles/modules/style/svgs"
+    
   }
 }

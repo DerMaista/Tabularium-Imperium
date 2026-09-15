@@ -7,10 +7,6 @@ import Quickshell.Wayland
 import qs.config
 import qs.services
 
-// The history panel. Built like the shell's other two overlays — full-screen,
-// exclusive keyboard focus, Escape or a click outside closes it — but the panel
-// itself sits where the toasts do, so opening it reads as the corner stack
-// unfolding rather than as a separate dialog appearing.
 PanelWindow {
     id: root
 
@@ -20,9 +16,6 @@ PanelWindow {
     readonly property real uniformMargin: Math.max(root.screenSize * 0.01, 15)
     readonly property real strokeWidth: root.uniformMargin / 6
 
-    // Where the panel starts and how tall it may get. Named rather than read
-    // back off the anchors group, so the height binding below does not depend
-    // on the same anchors it sits next to.
     readonly property real panelTop: root.topheight + root.uniformMargin / 2
 
     anchors {
@@ -65,8 +58,6 @@ PanelWindow {
 
             width: Math.max(320, Math.min(keyScope.width * 0.2, 420))
             readonly property real contentHeight: NotificationService.count === 0 ? emptyLabel.implicitHeight + root.uniformMargin : list.contentHeight
-            // Shrinks to the content while it fits, then clamps — which is also
-            // what stops the clamp from feeding back into ListView.contentHeight.
             height: Math.min(header.height + panel.contentHeight + root.uniformMargin * 2.5, keyScope.height - root.panelTop - root.uniformMargin * 2.5)
 
             color: Colors.background
@@ -75,8 +66,6 @@ PanelWindow {
                 color: Colors.accent
             }
 
-            // Swallows clicks that would otherwise reach the close-on-outside
-            // area behind the panel.
             MouseArea {
                 anchors.fill: parent
             }
@@ -156,9 +145,6 @@ PanelWindow {
                 font.family: Config.fontfamily
             }
 
-            // A ListView rather than the original's ScrollView-and-Repeater:
-            // history runs to `historyLimit` rows, and only the handful on
-            // screen need to exist.
             ListView {
                 id: list
 
