@@ -1,7 +1,7 @@
 { pkgs, inputs }:
 
 let
-    runtimeDeps = [ pkgs.quickshell inputs.chromarium-mechanicus.packages.${pkgs.stdenv.hostPlatform.system}.chromarium-mechanicus ];
+    runtimeDeps = [ pkgs.quickshell inputs.chromarium-mechanicus.packages.${pkgs.stdenv.hostPlatform.system}.chromarium-mechanicus pkgs.wl-gammarelay-rs ];
 in
 pkgs.buildGoModule {
   pname = "blueshell";
@@ -9,16 +9,12 @@ pkgs.buildGoModule {
 
   src = pkgs.lib.cleanSource ../src;
 
-  # `nix build` will tell you the correct value if this ever goes stale:
-  # set it to lib.fakeHash, build, and copy the hash from the error.
   vendorHash = "sha256-Kb92FX9cEb5eQhLrbKfA3vlsgKpGvD2pLKjCgSF/Pjc=";
 
   ldflags = [ "-s" "-w" "-X main.Version=2.0" ];
 
   nativeBuildInputs = [ pkgs.makeWrapper ];
 
-  # quickshell is the only thing the daemon execs, and it must be the exact
-  # one this was built against.
   postInstall = ''
     wrapProgram $out/bin/blueshell \
       --prefix PATH : ${pkgs.lib.makeBinPath runtimeDeps}

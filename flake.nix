@@ -1,5 +1,5 @@
 {
-  description = "My Quickshell setup";
+  description = "Tabularium Imperium Flake";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -13,10 +13,15 @@
   outputs = inputs@{ flake-parts, ... }:
   flake-parts.lib.mkFlake { inherit inputs; } {
 
-    flake = {
-      hmModules.default = import ./modules/tabularium-imperium.nix;
-      nixosModules.default = import ./modules/services.nix;
-    };
+    flake =
+      let
+        homeModule = import ./modules/homeModule.nix;
+      in
+      {
+        nixosModules.default = import ./modules/nixosModule.nix;
+
+        homeManagerModules.default = homeModule;
+      };
 
     systems = [
       "x86_64-linux"
