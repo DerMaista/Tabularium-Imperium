@@ -27,6 +27,16 @@ Rectangle {
 
     readonly property real borderWidth: root.critical ? root.strokeWidth * 2 : root.strokeWidth
 
+    readonly property var buttonActions: root.notification.actions.filter(action => action.identifier !== "default" && action.text !== "")
+
+    readonly property var defaultAction: {
+        for (const action of root.notification.actions) {
+            if (action.identifier === "default")
+                return action;
+        }
+        return null;
+    }
+
     readonly property string iconSource: {
         if (root.notification.image !== "")
             return root.notification.image;
@@ -45,9 +55,15 @@ Rectangle {
 
     MouseArea {
         anchors.fill: parent
-        enabled: root.clickable
+        enabled: root.clickable || root.defaultAction !== null
 
-        onClicked: root.clicked()
+        onClicked: {
+            if (root.defaultAction) {
+                NotificationService.invokeAction(root.notification, root.defaultAction);
+                return;
+            }
+            root.clicked();
+        }
     }
 
     RowLayout {
@@ -175,11 +191,11 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.topMargin: root.strokeWidth
 
-                visible: root.notification.actions.length > 0
+                visible: root.buttonActions.length > 0
                 spacing: root.strokeWidth * 2
 
                 Repeater {
-                    model: root.notification.actions
+                    model: root.buttonActions
 
                     delegate: Rectangle {
                         id: button

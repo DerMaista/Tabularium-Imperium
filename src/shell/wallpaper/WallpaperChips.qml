@@ -140,9 +140,21 @@ Item {
         }
 
         Volume {
+            id: volume
+
             screen: root.screen
             anchors {
                 right: parent.right
+                verticalCenter: parent.bottom
+                verticalCenterOffset: -root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
+        Brightness {
+            screen: root.screen
+            anchors {
+                right: volume.left
                 verticalCenter: parent.bottom
                 verticalCenterOffset: -root.strokeWidth / 2
                 margins: root.uniformMargin

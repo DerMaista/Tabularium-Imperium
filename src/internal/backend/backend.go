@@ -20,6 +20,7 @@ const (
 	TopicTheme      = "theme"
 	TopicLock       = "lock"
 	TopicSigil      = "sigil"
+	TopicBrightness = "brightness"
 )
 
 type Backend struct {
@@ -35,6 +36,7 @@ type Backend struct {
 	power      *powerManager
 	lock       *lockManager
 	sigil      *sigilManager
+	brightness *brightnessManager
 }
 
 func Boot(ctx context.Context) (*Backend, error) {
@@ -53,6 +55,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.theme = newThemeManager(bus)
 	b.lock = newLockManager(bus)
 	b.sigil = newSigilManager(bus)
+	b.brightness = newBrightnessManager(bus)
 	b.power = newPowerManager(b.lock)
 
 	mux := ipc.NewMux()
@@ -65,6 +68,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	mux.HandlePrefix("power.", b.power.handle)
 	mux.HandlePrefix("lock.", b.lock.handle)
 	mux.HandlePrefix("sigil.", b.sigil.handle)
+	mux.HandlePrefix("brightness.", b.brightness.handle)
 
 	b.srv = ipc.NewServer(ipc.Config{
 		AppName:    "blueshell",
@@ -73,7 +77,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 
 		CapabilitiesFunc: b.capabilities,
 
-		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil},
+		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness},
 
 		OnSubscribe: b.replaySnapshots,
 	}, mux.ServeIPC)
@@ -91,6 +95,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.power.start(ctx)
 	b.lock.start(ctx)
 	b.sigil.start(ctx)
+	b.brightness.start(ctx)
 
 	go func() {
 		defer func() {
@@ -133,6 +138,9 @@ func (b *Backend) capabilities() []string {
 	if b.sigil.available() {
 		caps = append(caps, "sigil")
 	}
+	if b.brightness.available() {
+		caps = append(caps, "brightness")
+	}
 	return caps
 }
 
@@ -154,6 +162,8 @@ func (b *Backend) replaySnapshots(topics []string, _ *ipc.Subscriber) {
 				b.lock.republish()
 			case TopicSigil:
 				b.sigil.republish()
+			case TopicBrightness:
+				b.brightness.republish()
 			}
 		}
 	}()
@@ -171,6 +181,7 @@ func (b *Backend) handleServerInfo(_ context.Context, w *ipc.ConnWriter, req ipc
 		"power":        b.power.info(),
 		"lock":         b.lock.info(),
 		"sigil":        b.sigil.info(),
+		"brightness":   b.brightness.info(),
 	})
 }
 

@@ -1,5 +1,8 @@
 import QtQuick
+
 import Quickshell.Services.Pipewire
+
+import qs.config
 
 Chip {
     id: root
@@ -7,23 +10,29 @@ Chip {
     readonly property PwNode sink: Pipewire.defaultAudioSink
     readonly property var audio: root.sink ? root.sink.audio : null
 
+    readonly property bool muted: root.audio ? root.audio.muted : false
+
     PwObjectTracker {
         objects: root.sink ? [root.sink] : []
     }
 
+    // Inverted while muted, the same way Notifications marks an open centre.
+    color: Colors.background
+
     ChipText {
-        accent: true
         text: "VOL"
+        color: Colors.accent
     }
 
     ChipText {
         text: {
             if (!root.audio)
                 return "--";
-            if (root.audio.muted)
+            if (root.muted)
                 return "MUTE";
             return Math.round(root.audio.volume * 100) + "%";
         }
+        color: Colors.primary
     }
 
     overlay: MouseArea {
