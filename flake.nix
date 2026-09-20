@@ -10,12 +10,18 @@
     };
   };
 
-  outputs = inputs@{ flake-parts, ... }:
+  outputs = inputs@{ self, flake-parts, ... }:
   flake-parts.lib.mkFlake { inherit inputs; } {
 
     flake =
       let
-        homeModule = import ./modules/homeModule.nix;
+        # The home module needs *this* flake's blueshell, so it is closed over
+        # here. It cannot ask for `self`: home-manager hands a module the
+        # importing flake's self, which has no packages of ours.
+        homeModule = args@{ pkgs, ... }:
+          import ./modules/homeModule.nix (args // {
+            blueshell = self.packages.${pkgs.stdenv.hostPlatform.system}.blueshell;
+          });
       in
       {
         nixosModules.default = import ./modules/nixosModule.nix;
