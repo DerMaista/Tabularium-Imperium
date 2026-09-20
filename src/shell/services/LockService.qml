@@ -300,7 +300,9 @@ Singleton {
     }
 
     IdleMonitor {
-        enabled: Config.lockIdleTimeout > 0 && !root.active
+        // Caffeine takes the idle lock out of the loop entirely: while it is on,
+        // there is no timeout to reach, not a longer one.
+        enabled: Config.lockIdleTimeout > 0 && !root.active && !CaffeineService.active
         timeout: Config.lockIdleTimeout
         respectInhibitors: true
 

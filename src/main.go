@@ -89,6 +89,7 @@ func main() {
 	root.AddCommand(notificationsCommand())
 	root.AddCommand(lockCommand())
 	root.AddCommand(sigilCommand())
+	root.AddCommand(caffeineCommand())
 
 	app.New(app.Info{Name: "blueshell", ID: appID, Version: Version}, root).Execute()
 }
@@ -424,4 +425,90 @@ func callCommand() *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+func caffeineCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "caffeine",
+		SilenceUsage: true,
+		Short:        "Keep the session awake, or stop keeping it awake",
+		Long: "Holds off the idle timers while it is on: this shell's idle lock, the\n" +
+			"compositor's blanking through the wayland idle-inhibit protocol, and\n" +
+			"logind's own IdleAction.\n\n" +
+			"Suspend itself is untouched — the logout panel, a keybind or a closing\n" +
+			"lid still put the machine down, and the lock screen still comes up\n" +
+			"first. What caffeine disables is the timer, not the verb.\n\n" +
+			"With no argument, prints whether it is on.",
+		Args: cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return withBackend(func(client *ipc.Client) error {
+				result, err := callBackend(client, "caffeine.status", nil)
+				if err != nil {
+					return err
+				}
+				printCaffeine(result)
+				return nil
+			})
+		},
+	}
+
+	cmd.AddCommand(caffeineSetCommands()...)
+
+	return cmd
+}
+
+func caffeineSetCommands() []*cobra.Command {
+	set := func(method string, params map[string]any) error {
+		return withBackend(func(client *ipc.Client) error {
+			result, err := callBackend(client, method, params)
+			if err != nil {
+				return err
+			}
+			printCaffeine(result)
+			return nil
+		})
+	}
+
+	return []*cobra.Command{
+		{
+			Use:          "on",
+			Short:        "Keep the session awake",
+			SilenceUsage: true,
+			Args:         cobra.NoArgs,
+			RunE: func(*cobra.Command, []string) error {
+				return set("caffeine.set", map[string]any{"active": true})
+			},
+		},
+		{
+			Use:          "off",
+			Short:        "Let the idle timers run again",
+			SilenceUsage: true,
+			Args:         cobra.NoArgs,
+			RunE: func(*cobra.Command, []string) error {
+				return set("caffeine.set", map[string]any{"active": false})
+			},
+		},
+		{
+			Use:          "toggle",
+			Short:        "Flip caffeine, for a keybind or the widget",
+			SilenceUsage: true,
+			Args:         cobra.NoArgs,
+			RunE: func(*cobra.Command, []string) error {
+				return set("caffeine.toggle", nil)
+			},
+		},
+	}
+}
+
+func printCaffeine(status map[string]any) {
+	active, _ := status["active"].(bool)
+	if !active {
+		fmt.Println("off")
+		return
+	}
+	if inhibited, _ := status["inhibited"].(bool); !inhibited {
+		fmt.Println("on (shell only — logind refused the idle inhibitor)")
+		return
+	}
+	fmt.Println("on")
 }

@@ -152,9 +152,21 @@ Item {
         }
 
         Brightness {
+            id: brightness
+
             screen: root.screen
             anchors {
                 right: volume.left
+                verticalCenter: parent.bottom
+                verticalCenterOffset: -root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
+        Caffeine {
+            screen: root.screen
+            anchors {
+                right: brightness.left
                 verticalCenter: parent.bottom
                 verticalCenterOffset: -root.strokeWidth / 2
                 margins: root.uniformMargin

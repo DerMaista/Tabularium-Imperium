@@ -85,6 +85,7 @@ internal/backend/
   power.go           logind: what the machine can do, and doing it
   sigil.go           which SVG the wallpaper draws, and where the SVGs are
   lock.go            the locked flag, logind Lock, LockedHint, the sleep inhibitor
+  caffeine.go        the idle inhibitor that keeps the session awake
 shell/
   shell.qml          entry point: pragmas, screen Variants, Binding, IpcHandler
   services/          BackendService (transport) + one thin service per topic,
@@ -661,6 +662,39 @@ controls on the lock surface, and no separate grace period before the screen
 blanks. The palette has three colours, so a failed attempt is drawn with a
 doubled stroke rather than in red — the same way the logout panel marks a
 selection and a notification marks urgency.
+
+## Caffeine
+
+The coffee chip in the bottom row, left of brightness. While it is on, nothing
+counts idle time against you:
+
+- `LockService`'s `IdleMonitor` is switched off outright, so there is no
+  `idleTimeout` to reach rather than a longer one,
+- the wallpaper's background layer surface carries a wayland idle-inhibit
+  request, which is what stops the compositor blanking,
+- and the backend holds a logind `idle` inhibitor in `block` mode, which is
+  what stops `IdleAction` suspending the machine underneath the shell.
+
+**`sleep` is deliberately not inhibited.** Suspend from the logout panel, from
+a keybind or from a closing lid still works while caffeine is on, and the lock
+screen still comes up first — the sleep inhibitor `lock.go` holds is a `delay`
+one and is untouched. What caffeine disables is the timer, not the verb.
+
+The state lives in the backend, not in the QML, so the widget and the CLI can
+never disagree: both call the same two methods and both learn about the other's
+change from the pushed `caffeine` event.
+
+```bash
+blueshell caffeine              # off | on | on (shell only — …)
+blueshell caffeine on
+blueshell caffeine off
+blueshell caffeine toggle       # for a keybind
+```
+
+Without a system bus the flag still works and the screen still will not lock —
+only the logind half is missing. That is the `on (shell only)` status, and the
+widget draws it hollow rather than filled, because in that state the machine
+can still suspend on its own.
 
 ## The sigil
 

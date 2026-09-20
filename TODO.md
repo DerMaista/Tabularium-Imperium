@@ -1,5 +1,4 @@
-- screen brightness widget + muted state for volume widget / osd
 - add trayicon widget
+
+# Later
 - install nixos on laptop
-- add homeManager module for Tabilarium-Imperium
-- notification center => emty buttons on cards that dont do anything

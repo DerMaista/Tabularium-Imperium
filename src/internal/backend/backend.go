@@ -21,6 +21,7 @@ const (
 	TopicLock       = "lock"
 	TopicSigil      = "sigil"
 	TopicBrightness = "brightness"
+	TopicCaffeine   = "caffeine"
 )
 
 type Backend struct {
@@ -37,6 +38,7 @@ type Backend struct {
 	lock       *lockManager
 	sigil      *sigilManager
 	brightness *brightnessManager
+	caffeine   *caffeineManager
 }
 
 func Boot(ctx context.Context) (*Backend, error) {
@@ -56,6 +58,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.lock = newLockManager(bus)
 	b.sigil = newSigilManager(bus)
 	b.brightness = newBrightnessManager(bus)
+	b.caffeine = newCaffeineManager(bus)
 	b.power = newPowerManager(b.lock)
 
 	mux := ipc.NewMux()
@@ -69,6 +72,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	mux.HandlePrefix("lock.", b.lock.handle)
 	mux.HandlePrefix("sigil.", b.sigil.handle)
 	mux.HandlePrefix("brightness.", b.brightness.handle)
+	mux.HandlePrefix("caffeine.", b.caffeine.handle)
 
 	b.srv = ipc.NewServer(ipc.Config{
 		AppName:    "blueshell",
@@ -77,7 +81,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 
 		CapabilitiesFunc: b.capabilities,
 
-		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness},
+		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness, TopicCaffeine},
 
 		OnSubscribe: b.replaySnapshots,
 	}, mux.ServeIPC)
@@ -96,6 +100,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.lock.start(ctx)
 	b.sigil.start(ctx)
 	b.brightness.start(ctx)
+	b.caffeine.start(ctx)
 
 	go func() {
 		defer func() {
@@ -141,6 +146,9 @@ func (b *Backend) capabilities() []string {
 	if b.brightness.available() {
 		caps = append(caps, "brightness")
 	}
+	if b.caffeine.available() {
+		caps = append(caps, "caffeine")
+	}
 	return caps
 }
 
@@ -164,6 +172,8 @@ func (b *Backend) replaySnapshots(topics []string, _ *ipc.Subscriber) {
 				b.sigil.republish()
 			case TopicBrightness:
 				b.brightness.republish()
+			case TopicCaffeine:
+				b.caffeine.republish()
 			}
 		}
 	}()
@@ -182,6 +192,7 @@ func (b *Backend) handleServerInfo(_ context.Context, w *ipc.ConnWriter, req ipc
 		"lock":         b.lock.info(),
 		"sigil":        b.sigil.info(),
 		"brightness":   b.brightness.info(),
+		"caffeine":     b.caffeine.info(),
 	})
 }
 

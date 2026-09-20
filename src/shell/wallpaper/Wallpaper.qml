@@ -3,6 +3,7 @@ import Quickshell.Wayland
 import QtQuick
 
 import qs.config
+import qs.services
 
 Scope {
     id: root
@@ -34,5 +35,9 @@ Scope {
 
             screen: root.screen
         }
+    }
+    IdleInhibitor {
+        window: wallpaper
+        enabled: CaffeineService.active
     }
 }
