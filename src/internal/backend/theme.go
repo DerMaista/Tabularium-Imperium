@@ -70,10 +70,36 @@ type chromaTheme struct {
 	Mode      string `json:"mode"`
 	Wallpaper string `json:"wallpaper"`
 	Colors    struct {
-		Background string `json:"background"`
-		Primary    string `json:"primary"`
-		Accent     string `json:"accent"`
+		Primary   chromaSurface `json:"primary"`
+		Secondary chromaSurface `json:"secondary"`
+		Tertiary  chromaSurface `json:"tertiary"`
+		Palette   struct {
+			chromaPalette
+			Bright chromaPalette `json:"bright"`
+		} `json:"palette"`
 	} `json:"colors"`
+}
+
+type chromaSurface struct {
+	Background string `json:"bg"`
+	Foreground string `json:"fg"`
+	Accent     string `json:"accent"`
+	Contrast   string `json:"contrast"`
+}
+
+type chromaPalette struct {
+	Red    string `json:"red"`
+	Green  string `json:"green"`
+	Blue   string `json:"blue"`
+	Yellow string `json:"yellow"`
+	Orange string `json:"orange"`
+	Purple string `json:"purple"`
+	Cyan   string `json:"cyan"`
+	Pink   string `json:"pink"`
+	Gray   string `json:"gray"`
+	Brown  string `json:"brown"`
+	Black  string `json:"black"`
+	White  string `json:"white"`
 }
 
 type themeManager struct {
@@ -221,9 +247,9 @@ func (t *themeManager) ensureTemplates() error {
 }
 
 const defaultColorTemplate = `{
-    "background": "{{.Colors.Background}}",
-    "primary": "{{.Colors.Primary}}",
-    "accent": "{{.Colors.Accent}}"
+    "background": "{{.colors.primary.bg}}",
+    "primary": "{{.colors.primary.fg}}",
+    "accent": "{{.colors.primary.accent}}"
 }
 `
 
@@ -266,16 +292,20 @@ func (t *themeManager) list() ([]map[string]any, error) {
 		}
 		var parsed chromaTheme
 		if err := json.Unmarshal(data, &parsed); err != nil {
-			log.Warnf("theme %q is not valid JSON: %v", name, err)
+			if json.Valid(data) {
+				log.Warnf("theme %q does not match the current colour layout — expected colors.primary.{bg,fg,accent}: %v", name, err)
+			} else {
+				log.Warnf("theme %q is not valid JSON: %v", name, err)
+			}
 			continue
 		}
 
 		themes = append(themes, map[string]any{
 			"name":       name,
 			"mode":       parsed.Mode,
-			"background": parsed.Colors.Background,
-			"primary":    parsed.Colors.Primary,
-			"accent":     parsed.Colors.Accent,
+			"background": parsed.Colors.Primary.Background,
+			"primary":    parsed.Colors.Primary.Foreground,
+			"accent":     parsed.Colors.Primary.Accent,
 			"wallpaper":  parsed.Wallpaper,
 		})
 	}

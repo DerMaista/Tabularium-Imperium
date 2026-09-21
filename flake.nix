@@ -15,9 +15,6 @@
 
     flake =
       let
-        # The home module needs *this* flake's blueshell, so it is closed over
-        # here. It cannot ask for `self`: home-manager hands a module the
-        # importing flake's self, which has no packages of ours.
         homeModule = args@{ pkgs, ... }:
           import ./modules/homeModule.nix (args // {
             blueshell = self.packages.${pkgs.stdenv.hostPlatform.system}.blueshell;
