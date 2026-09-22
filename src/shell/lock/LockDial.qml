@@ -32,7 +32,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
 
             ShapePath {
-                strokeColor: Colors.accent
+                strokeColor: Colors.background
                 strokeWidth: root.ringWidth
                 fillColor: "transparent"
                 capStyle: ShapePath.FlatCap

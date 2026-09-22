@@ -16,7 +16,8 @@ Item {
     readonly property real uniformMargin: Math.max(root.screenSize * 0.01, 15)
     readonly property real strokeWidth: root.uniformMargin / 6
 
-    readonly property real dialSize: Math.min(root.screenSize * 0.34, 420)
+    readonly property real dialSize: root.screenSize * 0.34
+    readonly property real dialRingWidth: Math.max(2, root.dialSize * 0.035)
 
     readonly property bool closed: LockService.panesClosed
 
@@ -81,15 +82,15 @@ Item {
             y: (pane.height - root.dialSize) / 2
 
             ShapePath {
-                strokeColor: Colors.accent
-                strokeWidth: Math.max(2, root.dialSize * 0.035)
+                strokeColor: Colors.background
+                strokeWidth: root.dialRingWidth
                 fillColor: "transparent"
 
                 PathAngleArc {
                     centerX: root.dialSize / 2
                     centerY: root.dialSize / 2
-                    radiusX: (root.dialSize - Math.max(2, root.dialSize * 0.035)) / 2
-                    radiusY: (root.dialSize - Math.max(2, root.dialSize * 0.035)) / 2
+                    radiusX: (root.dialSize - root.dialRingWidth) / 2
+                    radiusY: (root.dialSize - root.dialRingWidth) / 2
                     startAngle: pane.leftSide ? 90 : 270
                     sweepAngle: 180
                 }
