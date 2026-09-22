@@ -21,7 +21,7 @@
 
       Service = {
         ExecStart = "${lib.getExe blueshell} run";
-        Restart = "on-failure";
+        Restart = "always";
         RestartSec = 2;
         KillMode = "control-group";
         TimeoutStopSec = 5;
