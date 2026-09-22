@@ -14,6 +14,7 @@ Singleton {
     property alias notificationsTimeout: notificationsConfig.timeout
     property alias notificationsHistoryLimit: notificationsConfig.historyLimit
     property alias notificationsPopupLimit: notificationsConfig.popupLimit
+    property alias osdTimeout: osdConfig.timeout
     property alias lockIdleTimeout: lockConfig.idleTimeout
     property alias lockFlyout: lockConfig.flyout
     property alias lockMaxFailures: lockConfig.maxFailures
@@ -77,6 +78,12 @@ Singleton {
                 property int timeout: 5000
                 property int historyLimit: 100
                 property int popupLimit: 5
+            }
+
+            property JsonObject osd: JsonObject {
+                id: osdConfig
+
+                property int timeout: 2000
             }
 
             property JsonObject bar: JsonObject {

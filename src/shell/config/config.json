@@ -11,6 +11,9 @@
         "historyLimit": 100,
         "popupLimit": 5
     },
+    "osd": {
+        "timeout": 2000
+    },
     "sigil": {
         "dir": ""
     },

@@ -9,6 +9,7 @@ import qs.config
 import qs.lock
 import qs.modals
 import qs.notifications
+import qs.osd
 import qs.services
 import qs.wallpaper
 
@@ -241,6 +242,14 @@ ShellRoot {
                 component: NotificationCenter {
                     screen: monitor.modelData
                     topheight: wallpaper.topheight
+                }
+            }
+
+            LazyLoader {
+                active: OsdService.visible
+
+                component: Osd {
+                    screen: monitor.modelData
                 }
             }
 
