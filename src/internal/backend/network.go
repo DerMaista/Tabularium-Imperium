@@ -18,6 +18,7 @@ const (
 	nmActive    = "org.freedesktop.NetworkManager.Connection.Active"
 	nmWireless  = "org.freedesktop.NetworkManager.Device.Wireless"
 	nmAccessPt  = "org.freedesktop.NetworkManager.AccessPoint"
+	nmIP4Config = "org.freedesktop.NetworkManager.IP4Config"
 	propsIface  = "org.freedesktop.DBus.Properties"
 	nmConnected = 70
 	nmDebounce  = 250 * time.Millisecond
@@ -147,6 +148,7 @@ func (n *networkWatcher) resolve() map[string]any {
 		"type":      "none",
 		"name":      "OFFLINE",
 		"strength":  0,
+		"address":   "",
 	}
 
 	nmState, err := getProp[uint32](conn, nmService, dbus.ObjectPath(nmPath), nmIface, "State")
@@ -167,6 +169,9 @@ func (n *networkWatcher) resolve() map[string]any {
 	state["type"] = shortConnType(connType)
 	if connID != "" {
 		state["name"] = connID
+	}
+	if addr := primaryIPv4(conn, primary); addr != "" {
+		state["address"] = addr
 	}
 
 	if connType != "802-11-wireless" {
@@ -191,6 +196,21 @@ func (n *networkWatcher) resolve() map[string]any {
 	}
 
 	return state
+}
+
+func primaryIPv4(conn *dbus.Conn, active dbus.ObjectPath) string {
+	cfg, err := getProp[dbus.ObjectPath](conn, nmService, active, nmActive, "Ip4Config")
+	if err != nil || cfg == "" || cfg == "/" {
+		return ""
+	}
+
+	addrs, err := getProp[[]map[string]dbus.Variant](conn, nmService, cfg, nmIP4Config, "AddressData")
+	if err != nil || len(addrs) == 0 {
+		return ""
+	}
+
+	addr, _ := addrs[0]["address"].Value().(string)
+	return addr
 }
 
 func shortConnType(t string) string {

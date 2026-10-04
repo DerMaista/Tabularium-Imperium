@@ -93,6 +93,7 @@ shell/
   modals/            ThemePicker.qml, SigilPicker.qml, LogoutPanel.qml
   notifications/     the toast stack, the centre, and the card they share
   osd/               the brightness and volume readout, and its segment meter
+  tray/              the SNI menu overlay, its entries, and the tinted icon
   lock/              the lock surface, its preview, and the flyout
   widgets/           Chip, ChipText, and the widgets
   wallpaper/         Wallpaper.qml; BlueprintGrid.qml (now a shader)

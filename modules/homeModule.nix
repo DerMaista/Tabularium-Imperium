@@ -5,10 +5,12 @@
       Unit = {
         Description = "wl-gammarelay-rs";
         PartOf = [ "graphical-session.target" ];
+        After = [ "graphical-session.target" ];
       };
       Service = {
         ExecStart = "${lib.getExe pkgs.wl-gammarelay-rs} run";
         Restart = "on-failure";
+        RestartSec = 2;
       };
       Install.WantedBy = [ "graphical-session.target" ];
     };

@@ -93,9 +93,21 @@ Item {
         }
 
         Battery {
+            id: battery
+
             screen: root.screen
             anchors {
                 right: storage.left
+                verticalCenter: parent.top
+                verticalCenterOffset: root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
+        Tray {
+            screen: root.screen
+            anchors {
+                right: battery.left
                 verticalCenter: parent.top
                 verticalCenterOffset: root.strokeWidth / 2
                 margins: root.uniformMargin
@@ -119,10 +131,22 @@ Item {
             }
         }
 
-        Uptime {
+        IpAddress {
+            id: ipAddress
+
             screen: root.screen
             anchors {
                 left: network.right
+                verticalCenter: parent.bottom
+                verticalCenterOffset: -root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
+        Uptime {
+            screen: root.screen
+            anchors {
+                left: ipAddress.right
                 verticalCenter: parent.bottom
                 verticalCenterOffset: -root.strokeWidth / 2
                 margins: root.uniformMargin

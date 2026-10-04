@@ -15,6 +15,7 @@ Singleton {
     property alias notificationsHistoryLimit: notificationsConfig.historyLimit
     property alias notificationsPopupLimit: notificationsConfig.popupLimit
     property alias osdTimeout: osdConfig.timeout
+    property alias trayMonochrome: trayConfig.monochrome
     property alias lockIdleTimeout: lockConfig.idleTimeout
     property alias lockFlyout: lockConfig.flyout
     property alias lockMaxFailures: lockConfig.maxFailures
@@ -84,6 +85,12 @@ Singleton {
                 id: osdConfig
 
                 property int timeout: 2000
+            }
+
+            property JsonObject tray: JsonObject {
+                id: trayConfig
+
+                property bool monochrome: true
             }
 
             property JsonObject bar: JsonObject {

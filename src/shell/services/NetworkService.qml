@@ -13,6 +13,7 @@ Singleton {
     property string name: "OFFLINE"
     property string type: "none"
     property int strength: 0
+    property string address: ""
 
     readonly property string label: root.connected ? root.name.toUpperCase() : "OFFLINE"
 
@@ -23,6 +24,7 @@ Singleton {
         root.name = data.name || "OFFLINE";
         root.type = data.type || "none";
         root.strength = data.strength || 0;
+        root.address = data.address || "";
     }
 
     Connections {
@@ -36,6 +38,7 @@ Singleton {
             root.connected = false;
             root.name = "OFFLINE";
             root.strength = 0;
+            root.address = "";
         }
     }
 }

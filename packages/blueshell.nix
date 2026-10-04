@@ -17,7 +17,8 @@ pkgs.buildGoModule {
 
   postInstall = ''
     wrapProgram $out/bin/blueshell \
-      --prefix PATH : ${pkgs.lib.makeBinPath runtimeDeps}
+      --prefix PATH : ${pkgs.lib.makeBinPath runtimeDeps} \
+      --suffix XDG_DATA_DIRS : ${pkgs.adwaita-icon-theme}/share
   '';
 
   meta = {

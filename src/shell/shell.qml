@@ -1,4 +1,5 @@
 //@ pragma Env QSG_RENDER_LOOP=threaded
+//@ pragma IconTheme Adwaita
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -11,6 +12,7 @@ import qs.modals
 import qs.notifications
 import qs.osd
 import qs.services
+import qs.tray
 import qs.wallpaper
 
 ShellRoot {
@@ -249,6 +251,14 @@ ShellRoot {
                 active: OsdService.visible
 
                 component: Osd {
+                    screen: monitor.modelData
+                }
+            }
+
+            LazyLoader {
+                active: TrayService.menuOpen && TrayService.menuScreen === monitor.modelData.name
+
+                component: TrayMenu {
                     screen: monitor.modelData
                 }
             }
