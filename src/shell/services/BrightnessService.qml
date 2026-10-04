@@ -7,7 +7,9 @@ import Quickshell
 Singleton {
     id: root
 
-    readonly property bool available: BackendService.has("brightness")
+    // wl-gammarelay-rs can join the bus after the shell has connected, so
+    // track availability from the backend's events, not the startup caps.
+    property bool available: false
 
     property real value: 1
 
@@ -18,6 +20,8 @@ Singleton {
     function applyState(data) {
         if (!data)
             return;
+        if (data.available !== undefined)
+            root.available = data.available;
         if (data.value !== undefined)
             root.value = data.value;
     }
@@ -44,9 +48,6 @@ Singleton {
     }
 
     function refresh() {
-        if (!root.available)
-            return;
-
         BackendService.sendRequest("brightness.get", null, response => {
             if (response.error)
                 return;
@@ -63,6 +64,10 @@ Singleton {
 
         function onLinkUp() {
             root.refresh();
+        }
+
+        function onLinkDown() {
+            root.available = false;
         }
     }
 }
