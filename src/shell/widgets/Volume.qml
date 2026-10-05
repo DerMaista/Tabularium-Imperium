@@ -24,13 +24,10 @@ Chip {
         color: Colors.primary
     }
 
-    overlay: MouseArea {
+    overlay: WheelArea {
         anchors.fill: parent
 
-        onWheel: wheel => {
-            const step = wheel.angleDelta.y > 0 ? AudioService.step : -AudioService.step;
-            AudioService.adjust(step);
-        }
+        onStepped: direction => AudioService.adjust(direction * AudioService.step)
 
         onClicked: AudioService.toggleMute()
     }

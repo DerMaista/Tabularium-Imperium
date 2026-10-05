@@ -43,8 +43,24 @@ Singleton {
         });
     }
 
+    // The backend does the stepping: a coarse backlight has to move at least
+    // one level per step, which only it knows. The local value moves straight
+    // away so the readout keeps up; the reply corrects it to the real level.
     function adjust(delta) {
-        root.set(root.value + delta);
+        if (!root.available)
+            return;
+
+        root.value = Math.max(0, Math.min(1, root.value + delta));
+
+        BackendService.sendRequest("brightness.adjust", {
+            "delta": delta
+        }, response => {
+            if (response.error) {
+                console.warn("brightness: " + response.error);
+                return;
+            }
+            root.applyState(response.result);
+        });
     }
 
     function refresh() {

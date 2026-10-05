@@ -86,6 +86,8 @@ internal/backend/
   sigil.go           which SVG the wallpaper draws, and where the SVGs are
   lock.go            the locked flag, logind Lock, LockedHint, the sleep inhibitor
   caffeine.go        the idle inhibitor that keeps the session awake
+  brightness.go      the brightness topic: wl-gammarelay-rs, or the backlight
+  backlight.go       /sys/class/backlight: pick, read, write via logind, watch
 shell/
   shell.qml          entry point: pragmas, screen Variants, Binding, IpcHandler
   services/          BackendService (transport) + one thin service per topic,

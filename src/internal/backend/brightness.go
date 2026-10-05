@@ -22,6 +22,14 @@ const (
 	dbusPath    = dbus.ObjectPath("/org/freedesktop/DBus")
 )
 
+// Two drivers sit behind the same topic and methods. A machine with a
+// backlight (a laptop panel) gets the backlight itself, which actually saves
+// power; one without (desktop monitors) dims through wl-gammarelay-rs.
+const (
+	driverBacklight = "backlight"
+	driverGamma     = "gamma"
+)
+
 type brightnessManager struct {
 	bus *ipc.EventBus
 
@@ -29,6 +37,10 @@ type brightnessManager struct {
 	conn    *dbus.Conn
 	present bool
 	value   float64
+
+	// Set only when driving a backlight; sys is for logind's SetBrightness.
+	backlight *backlight
+	sys       *dbus.Conn
 }
 
 func newBrightnessManager(bus *ipc.EventBus) *brightnessManager {
@@ -36,6 +48,11 @@ func newBrightnessManager(bus *ipc.EventBus) *brightnessManager {
 }
 
 func (b *brightnessManager) start(ctx context.Context) {
+	if d := findBacklight(); d != nil {
+		b.startBacklight(ctx, d)
+		return
+	}
+
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
 		log.Warnf("brightness: session bus unavailable: %v; brightness control is off", err)
@@ -55,6 +72,33 @@ func (b *brightnessManager) start(ctx context.Context) {
 		b.conn = nil
 		b.mu.Unlock()
 		_ = conn.Close()
+	}()
+}
+
+func (b *brightnessManager) startBacklight(ctx context.Context, d *backlight) {
+	sys, err := dbus.ConnectSystemBus()
+	if err != nil {
+		log.Warnf("brightness: system bus unavailable: %v; %s is read-only unless sysfs is writable", err, d.name)
+		sys = nil
+	}
+
+	b.mu.Lock()
+	b.backlight = d
+	b.sys = sys
+	b.mu.Unlock()
+
+	log.Infof("brightness: driving backlight %s (max %d)", d.name, d.max)
+
+	if err := d.watch(ctx, b.refresh); err != nil {
+		log.Warnf("brightness: %v; changes made elsewhere will not show", err)
+	}
+	b.refresh()
+
+	go func() {
+		<-ctx.Done()
+		if sys != nil {
+			_ = sys.Close()
+		}
 	}()
 }
 
@@ -155,8 +199,19 @@ func (b *brightnessManager) note(value float64, present bool) {
 
 func (b *brightnessManager) refresh() {
 	b.mu.Lock()
-	conn := b.conn
+	conn, d := b.conn, b.backlight
 	b.mu.Unlock()
+
+	if d != nil {
+		level, err := d.read()
+		if err != nil {
+			log.Debugf("brightness: reading %s: %v", d.name, err)
+			b.note(0, false)
+			return
+		}
+		b.note(d.fraction(level), true)
+		return
+	}
 
 	if conn == nil {
 		b.note(0, false)
@@ -174,8 +229,12 @@ func (b *brightnessManager) refresh() {
 
 func (b *brightnessManager) set(value float64) error {
 	b.mu.Lock()
-	conn, present := b.conn, b.present
+	conn, present, d := b.conn, b.present, b.backlight
 	b.mu.Unlock()
+
+	if d != nil {
+		return b.setLevel(d, d.level(value))
+	}
 
 	if conn == nil {
 		return fmt.Errorf("no session bus")
@@ -194,6 +253,46 @@ func (b *brightnessManager) set(value float64) error {
 	return nil
 }
 
+// adjust steps relative to the current level. A backlight with few levels
+// (acpi_video often has 10–15) would round a 5% step to no change at all, so
+// a step always moves at least one level.
+func (b *brightnessManager) adjust(delta float64) error {
+	b.mu.Lock()
+	d, value := b.backlight, b.value
+	b.mu.Unlock()
+
+	if d == nil {
+		return b.set(value + delta)
+	}
+
+	current, err := d.read()
+	if err != nil {
+		return fmt.Errorf("read %s: %w", d.name, err)
+	}
+	target := d.level(d.fraction(current) + delta)
+	if target == current {
+		switch {
+		case delta > 0:
+			target = d.clampLevel(current + 1)
+		case delta < 0:
+			target = d.clampLevel(current - 1)
+		}
+	}
+	return b.setLevel(d, target)
+}
+
+func (b *brightnessManager) setLevel(d *backlight, level int) error {
+	b.mu.Lock()
+	sys := b.sys
+	b.mu.Unlock()
+
+	if err := d.write(sys, level); err != nil {
+		return fmt.Errorf("set %s: %w", d.name, err)
+	}
+	b.note(d.fraction(level), true)
+	return nil
+}
+
 func clampBrightness(value float64) float64 {
 	switch {
 	case value < brightnessFloor:
@@ -203,12 +302,6 @@ func clampBrightness(value float64) float64 {
 	default:
 		return value
 	}
-}
-
-func (b *brightnessManager) current() float64 {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.value
 }
 
 func (b *brightnessManager) available() bool {
@@ -221,9 +314,14 @@ func (b *brightnessManager) snapshot() map[string]any {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	driver := driverGamma
+	if b.backlight != nil {
+		driver = driverBacklight
+	}
 	return map[string]any{
 		"available": b.present,
 		"value":     b.value,
+		"driver":    driver,
 	}
 }
 
@@ -235,10 +333,17 @@ func (b *brightnessManager) republish() { b.publish() }
 
 func (b *brightnessManager) info() map[string]any {
 	b.mu.Lock()
-	reachable := b.conn != nil
+	reachable, d, sys := b.conn != nil, b.backlight, b.sys
 	b.mu.Unlock()
 
 	info := b.snapshot()
+	if d != nil {
+		info["device"] = d.name
+		info["maxLevel"] = d.max
+		info["floor"] = d.fraction(d.minLevel())
+		info["systemBus"] = sys != nil
+		return info
+	}
 	info["sessionBus"] = reachable
 	info["service"] = gammaService
 	info["floor"] = brightnessFloor
@@ -269,7 +374,7 @@ func (b *brightnessManager) handle(_ context.Context, w *ipc.ConnWriter, req ipc
 			ipc.RespondError(w, req.ID, err.Error())
 			return
 		}
-		if err := b.set(b.current() + delta); err != nil {
+		if err := b.adjust(delta); err != nil {
 			ipc.RespondError(w, req.ID, err.Error())
 			return
 		}

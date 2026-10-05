@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -90,6 +91,7 @@ func main() {
 	root.AddCommand(lockCommand())
 	root.AddCommand(sigilCommand())
 	root.AddCommand(caffeineCommand())
+	root.AddCommand(brightnessCommand())
 
 	app.New(app.Info{Name: "blueshell", ID: appID, Version: Version}, root).Execute()
 }
@@ -511,4 +513,114 @@ func printCaffeine(status map[string]any) {
 		return
 	}
 	fmt.Println("on")
+}
+
+func brightnessCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "brightness",
+		SilenceUsage: true,
+		Short:        "Read or change the screen brightness",
+		Long: "Drives the panel backlight when the machine has one, and wl-gammarelay-rs\n" +
+			"otherwise, through the backend so the bar widget and the OSD follow along.\n\n" +
+			"With no argument, prints the current brightness in percent.",
+		Example: "  blueshell brightness up\n" +
+			"  blueshell brightness down 10\n" +
+			"  blueshell brightness set 100",
+		Args: cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return withBackend(func(client *ipc.Client) error {
+				result, err := callBackend(client, "brightness.get", nil)
+				if err != nil {
+					return err
+				}
+				printBrightness(result)
+				return nil
+			})
+		},
+	}
+
+	cmd.AddCommand(brightnessSetCommands()...)
+
+	return cmd
+}
+
+func brightnessSetCommands() []*cobra.Command {
+	set := func(method string, params map[string]any) error {
+		return withBackend(func(client *ipc.Client) error {
+			result, err := callBackend(client, method, params)
+			if err != nil {
+				return err
+			}
+			printBrightness(result)
+			return nil
+		})
+	}
+
+	// Steps and levels are percent on the command line, fractions on the wire.
+	percent := func(args []string, def float64) (float64, error) {
+		if len(args) == 0 {
+			return def / 100, nil
+		}
+		v, err := strconv.ParseFloat(args[0], 64)
+		if err != nil {
+			return 0, fmt.Errorf("%q is not a number", args[0])
+		}
+		return v / 100, nil
+	}
+
+	return []*cobra.Command{
+		{
+			Use:          "up [percent]",
+			Short:        "Brighten by a step (default 5)",
+			SilenceUsage: true,
+			Args:         cobra.MaximumNArgs(1),
+			RunE: func(_ *cobra.Command, args []string) error {
+				delta, err := percent(args, 5)
+				if err != nil {
+					return err
+				}
+				return set("brightness.adjust", map[string]any{"delta": delta})
+			},
+		},
+		{
+			Use:          "down [percent]",
+			Short:        "Dim by a step (default 5)",
+			SilenceUsage: true,
+			Args:         cobra.MaximumNArgs(1),
+			RunE: func(_ *cobra.Command, args []string) error {
+				delta, err := percent(args, 5)
+				if err != nil {
+					return err
+				}
+				return set("brightness.adjust", map[string]any{"delta": -delta})
+			},
+		},
+		{
+			Use:          "set <percent>",
+			Short:        "Set an absolute level (clamped to the backend's floor)",
+			SilenceUsage: true,
+			Args:         cobra.ExactArgs(1),
+			RunE: func(_ *cobra.Command, args []string) error {
+				value, err := percent(args, 0)
+				if err != nil {
+					return err
+				}
+				return set("brightness.set", map[string]any{"value": value})
+			},
+		},
+	}
+}
+
+func printBrightness(status map[string]any) {
+	if available, _ := status["available"].(bool); !available {
+		if driver, _ := status["driver"].(string); driver == "backlight" {
+			fmt.Println("unavailable (the backlight cannot be read)")
+		} else {
+			fmt.Println("unavailable (wl-gammarelay-rs is not running)")
+		}
+		return
+	}
+	value, _ := status["value"].(float64)
+	driver, _ := status["driver"].(string)
+	fmt.Printf("%.0f%% (%s)\n", value*100, driver)
 }

@@ -16,12 +16,9 @@ Chip {
         text: BrightnessService.percent + "%"
     }
 
-    overlay: MouseArea {
+    overlay: WheelArea {
         anchors.fill: parent
 
-        onWheel: wheel => {
-            const step = wheel.angleDelta.y > 0 ? BrightnessService.step : -BrightnessService.step;
-            BrightnessService.adjust(step);
-        }
+        onStepped: direction => BrightnessService.adjust(direction * BrightnessService.step)
     }
 }
