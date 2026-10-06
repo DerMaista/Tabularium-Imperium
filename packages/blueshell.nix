@@ -9,7 +9,7 @@ pkgs.buildGoModule {
 
   src = pkgs.lib.cleanSource ../src;
 
-  vendorHash = "sha256-Kb92FX9cEb5eQhLrbKfA3vlsgKpGvD2pLKjCgSF/Pjc=";
+  vendorHash = "sha256-cVe/wX2183N4Nn1uDYQMPo6svy27umi4pG2tKHeiYSw=";
 
   ldflags = [ "-s" "-w" "-X main.Version=2.0" ];
 

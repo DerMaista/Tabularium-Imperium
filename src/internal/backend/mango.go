@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -46,6 +48,10 @@ type mangoWatcher struct {
 	perMonitor map[string]map[string]any // monitor name -> last published payload
 	digests    map[string]string         // monitor name -> digest of that payload
 	connected  bool
+
+	// onMonitors hears the set of monitor names whenever it changes.
+	onMonitors func([]string)
+	monitors   string
 }
 
 func newMangoWatcher(bus *ipc.EventBus) *mangoWatcher {
@@ -131,6 +137,8 @@ func (m *mangoWatcher) watch(ctx context.Context) error {
 }
 
 func (m *mangoWatcher) apply(payload mangoAllTags) {
+	m.noteMonitors(payload)
+
 	for _, mon := range payload.AllTags {
 		event := monitorEvent(mon)
 
@@ -310,5 +318,23 @@ func (m *mangoWatcher) info() map[string]any {
 		"socket":    mangoSocketPath(),
 		"connected": m.connected,
 		"monitors":  len(m.perMonitor),
+	}
+}
+
+func (m *mangoWatcher) noteMonitors(payload mangoAllTags) {
+	names := make([]string, 0, len(payload.AllTags))
+	for _, mon := range payload.AllTags {
+		names = append(names, mon.Monitor)
+	}
+	sort.Strings(names)
+	key := strings.Join(names, "\x00")
+
+	m.mu.Lock()
+	changed := key != m.monitors
+	m.monitors = key
+	m.mu.Unlock()
+
+	if changed && m.onMonitors != nil {
+		m.onMonitors(names)
 	}
 }

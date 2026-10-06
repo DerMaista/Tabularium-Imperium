@@ -86,7 +86,7 @@ internal/backend/
   sigil.go           which SVG the wallpaper draws, and where the SVGs are
   lock.go            the locked flag, logind Lock, LockedHint, the sleep inhibitor
   caffeine.go        the idle inhibitor that keeps the session awake
-  brightness.go      the brightness topic: wl-gammarelay-rs, or the backlight
+  brightness.go      the brightness topic: the backlight, gamma for outputs it misses
   backlight.go       /sys/class/backlight: pick, read, write via logind, watch
 shell/
   shell.qml          entry point: pragmas, screen Variants, Binding, IpcHandler
@@ -789,6 +789,28 @@ rather than leaving a hole in the middle of the screen.
   edges.
 - **`Chip` and `ChipText`** replace fifteen lines of identical margin maths,
   border and font setup that were copy-pasted into all nine widgets.
+
+## Configuring from home-manager
+
+The home-manager module (`homeManagerModules.default`) can write
+`~/.config/tabularium-imperium/config.json` for you. The attrset is the JSON,
+key for key, and anything left out keeps the shell's default
+(`shell/config/config.json` lists them all):
+
+```nix
+programs.tabularium-imperium.settings = {
+  bar.height = 35;
+  text = { fontfamily = "NerdFont Mono"; fontsize = 14; };
+  lock.idleTimeout = 600;
+  animation = { colorDuration = 400; colorEasing = "OutCubic"; };
+  wallpaper_switcher.wallpaperDir = "${config.home.homeDirectory}/wallpapers";
+};
+```
+
+The file becomes a read-only store symlink, which is fine: nothing writes it
+back. A switch that changes it restarts the `tabularium` user service. Left
+empty, the module does not touch the file at all. The rest of the directory
+(`colors.json`, `svgs/`) stays yours either way.
 
 ## Runtime dependencies
 

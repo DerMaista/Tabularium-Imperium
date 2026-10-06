@@ -3,18 +3,26 @@ package backend
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
+	"time"
+	"unicode"
 
 	"github.com/AvengeMedia/dankgo/ipc"
 	"github.com/AvengeMedia/dankgo/ipc/params"
 	"github.com/AvengeMedia/dankgo/log"
 	"github.com/godbus/dbus/v5"
+	"github.com/godbus/dbus/v5/introspect"
 )
 
 const (
 	gammaService = "rs.wl-gammarelay"
 	gammaPath    = dbus.ObjectPath("/")
 	gammaIface   = "rs.wl.gammarelay"
+
+	gammaOutputsPath   = dbus.ObjectPath("/outputs")
+	outputSyncAttempts = 10
+	outputSyncInterval = 200 * time.Millisecond
 
 	brightnessFloor = 0.1
 
@@ -41,6 +49,9 @@ type brightnessManager struct {
 	// Set only when driving a backlight; sys is for logind's SetBrightness.
 	backlight *backlight
 	sys       *dbus.Conn
+
+	// Serialises output syncs, so the last one to run carries the latest value.
+	syncMu sync.Mutex
 }
 
 func newBrightnessManager(bus *ipc.EventBus) *brightnessManager {
@@ -48,34 +59,41 @@ func newBrightnessManager(bus *ipc.EventBus) *brightnessManager {
 }
 
 func (b *brightnessManager) start(ctx context.Context) {
-	if d := findBacklight(); d != nil {
-		b.startBacklight(ctx, d)
-		return
-	}
+	d := findBacklight()
 
+	// The session bus carries wl-gammarelay-rs: the whole job without a
+	// backlight, and the outputs the backlight does not reach with one.
 	conn, err := dbus.ConnectSessionBus()
-	if err != nil {
+	switch {
+	case err != nil && d == nil:
 		log.Warnf("brightness: session bus unavailable: %v; brightness control is off", err)
 		return
+	case err != nil:
+		log.Warnf("brightness: session bus unavailable: %v; only %s will dim", err, d.name)
+	default:
+		b.mu.Lock()
+		b.conn = conn
+		b.mu.Unlock()
+
+		go func() {
+			<-ctx.Done()
+			b.mu.Lock()
+			b.conn = nil
+			b.mu.Unlock()
+			_ = conn.Close()
+		}()
 	}
 
-	b.mu.Lock()
-	b.conn = conn
-	b.mu.Unlock()
+	if d != nil {
+		b.startBacklight(ctx, d, conn)
+		return
+	}
 
 	b.watch(ctx, conn)
 	b.refresh()
-
-	go func() {
-		<-ctx.Done()
-		b.mu.Lock()
-		b.conn = nil
-		b.mu.Unlock()
-		_ = conn.Close()
-	}()
 }
 
-func (b *brightnessManager) startBacklight(ctx context.Context, d *backlight) {
+func (b *brightnessManager) startBacklight(ctx context.Context, d *backlight, session *dbus.Conn) {
 	sys, err := dbus.ConnectSystemBus()
 	if err != nil {
 		log.Warnf("brightness: system bus unavailable: %v; %s is read-only unless sysfs is writable", err, d.name)
@@ -87,8 +105,11 @@ func (b *brightnessManager) startBacklight(ctx context.Context, d *backlight) {
 	b.sys = sys
 	b.mu.Unlock()
 
-	log.Infof("brightness: driving backlight %s (max %d)", d.name, d.max)
+	log.Infof("brightness: driving backlight %s (max %d), gamma for other outputs", d.name, d.max)
 
+	if session != nil {
+		b.watch(ctx, session)
+	}
 	if err := d.watch(ctx, b.refresh); err != nil {
 		log.Warnf("brightness: %v; changes made elsewhere will not show", err)
 	}
@@ -141,8 +162,16 @@ func (b *brightnessManager) watch(ctx context.Context, conn *dbus.Conn) {
 }
 
 func (b *brightnessManager) onSignal(sig *dbus.Signal) {
+	b.mu.Lock()
+	driving := b.backlight != nil
+	b.mu.Unlock()
+
 	switch sig.Name {
 	case propsIface + ".PropertiesChanged":
+		// With a backlight, gamma follows the value rather than defining it.
+		if driving {
+			return
+		}
 		if sig.Path != gammaPath || len(sig.Body) < 2 {
 			return
 		}
@@ -175,15 +204,22 @@ func (b *brightnessManager) onSignal(sig *dbus.Signal) {
 		owner, _ := sig.Body[2].(string)
 		if owner == "" {
 			log.Infof("brightness: %s left the bus", gammaService)
-			b.note(0, false)
+			if !driving {
+				b.note(0, false)
+			}
 			return
 		}
 		log.Infof("brightness: %s appeared on the bus", gammaService)
+		if driving {
+			b.syncOutputs()
+			return
+		}
 		b.refresh()
 	}
 }
 
-func (b *brightnessManager) note(value float64, present bool) {
+// note records the state and publishes it, reporting whether it changed.
+func (b *brightnessManager) note(value float64, present bool) bool {
 	b.mu.Lock()
 	changed := b.present != present || (present && b.value != value)
 	b.present = present
@@ -195,6 +231,7 @@ func (b *brightnessManager) note(value float64, present bool) {
 	if changed {
 		b.publish()
 	}
+	return changed
 }
 
 func (b *brightnessManager) refresh() {
@@ -209,7 +246,9 @@ func (b *brightnessManager) refresh() {
 			b.note(0, false)
 			return
 		}
-		b.note(d.fraction(level), true)
+		if b.note(d.fraction(level), true) {
+			b.syncOutputs()
+		}
 		return
 	}
 
@@ -289,7 +328,10 @@ func (b *brightnessManager) setLevel(d *backlight, level int) error {
 	if err := d.write(sys, level); err != nil {
 		return fmt.Errorf("set %s: %w", d.name, err)
 	}
+	// Sync unconditionally: our own write may already have been noted by the
+	// sysfs watcher, and the reply should not beat the outputs to the level.
 	b.note(d.fraction(level), true)
+	b.syncOutputs()
 	return nil
 }
 
@@ -383,4 +425,110 @@ func (b *brightnessManager) handle(_ context.Context, w *ipc.ConnWriter, req ipc
 	default:
 		ipc.RespondError(w, req.ID, "unknown method: "+req.Method)
 	}
+}
+
+// Connector prefixes of built-in panels. The backlight dims those, so their
+// gamma stays neutral; every other output is dimmed through gamma instead.
+var internalConnectors = []string{"eDP", "LVDS", "DSI"}
+
+func isInternalOutput(name string) bool {
+	for _, prefix := range internalConnectors {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// gammaObjectName is how wl-gammarelay-rs names an output's object:
+// DP-1 is /outputs/DP_1.
+func gammaObjectName(output string) string {
+	return strings.Map(func(r rune) rune {
+		if r < unicode.MaxASCII && (unicode.IsLetter(r) || unicode.IsDigit(r)) {
+			return r
+		}
+		return '_'
+	}, output)
+}
+
+func gammaOutputs(conn *dbus.Conn) ([]string, error) {
+	node, err := introspect.Call(conn.Object(gammaService, gammaOutputsPath))
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(node.Children))
+	for _, child := range node.Children {
+		names = append(names, child.Name)
+	}
+	return names, nil
+}
+
+// syncOutputs carries the backlight's value over to the outputs it cannot
+// reach — an external monitor on a laptop — and keeps the panel's own gamma
+// neutral so it is not dimmed twice.
+func (b *brightnessManager) syncOutputs() {
+	b.syncMu.Lock()
+	defer b.syncMu.Unlock()
+
+	b.mu.Lock()
+	conn, d, value := b.conn, b.backlight, b.value
+	b.mu.Unlock()
+
+	if conn == nil || d == nil {
+		return
+	}
+
+	names, err := gammaOutputs(conn)
+	if err != nil {
+		log.Debugf("brightness: listing %s outputs: %v", gammaService, err)
+		return
+	}
+	for _, name := range names {
+		target := clampBrightness(value)
+		if isInternalOutput(name) {
+			target = 1
+		}
+		path := dbus.ObjectPath(string(gammaOutputsPath) + "/" + name)
+		if err := conn.Object(gammaService, path).
+			SetProperty(gammaIface+".Brightness", dbus.MakeVariant(target)); err != nil {
+			log.Debugf("brightness: setting %s: %v", name, err)
+		}
+	}
+}
+
+// monitorsChanged is the compositor's word that outputs came or went. A new
+// one starts undimmed, and wl-gammarelay-rs may register it a moment after
+// the compositor reports it, so wait (briefly) for every output to show up.
+func (b *brightnessManager) monitorsChanged(monitors []string) {
+	b.mu.Lock()
+	conn, d := b.conn, b.backlight
+	b.mu.Unlock()
+
+	if conn == nil || d == nil {
+		return
+	}
+
+	go func() {
+		for range outputSyncAttempts {
+			names, err := gammaOutputs(conn)
+			if err == nil && containsAll(names, monitors) {
+				break
+			}
+			time.Sleep(outputSyncInterval)
+		}
+		b.syncOutputs()
+	}()
+}
+
+func containsAll(names, monitors []string) bool {
+	have := make(map[string]bool, len(names))
+	for _, name := range names {
+		have[name] = true
+	}
+	for _, monitor := range monitors {
+		if !have[gammaObjectName(monitor)] {
+			return false
+		}
+	}
+	return true
 }

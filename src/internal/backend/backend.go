@@ -60,6 +60,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.brightness = newBrightnessManager(bus)
 	b.caffeine = newCaffeineManager(bus)
 	b.power = newPowerManager(b.lock)
+	b.workspaces.onMonitors = b.brightness.monitorsChanged
 
 	mux := ipc.NewMux()
 	mux.Handle("getServerInfo", b.handleServerInfo)
