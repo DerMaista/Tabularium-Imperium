@@ -24,17 +24,20 @@ Singleton {
         root.resetAttempt();
         root.verifying = true;
         root.previewing = true;
+        root.fingerprintUnavailable = false;
+        root.startFingerprint();
     }
 
     function cancelPreview() {
+        root.stopFingerprint();
         root.previewing = false;
         root.verifying = false;
         root.resetPhases();
         root.resetAttempt();
     }
 
-    function finishVerify(ok) {
-        root.message = ok ? "PAM OK · SERVICE \"" + root.pamConfig + "\"" : root.message;
+    function finishVerify(ok, service) {
+        root.message = ok ? "PAM OK · SERVICE \"" + (service || root.pamConfig) + "\"" : root.message;
         root.messageIsError = !ok;
         if (ok)
             verifyTimer.restart();
@@ -55,6 +58,7 @@ Singleton {
         root.resetAttempt();
         root.failures = 0;
         root.lockoutUntil = 0;
+        root.fingerprintUnavailable = false;
         root.shouldLock = true;
     }
 
@@ -96,6 +100,9 @@ Singleton {
         if (root.unlocking)
             return;
         root.unlocking = true;
+        root.stopFingerprint();
+        if (pam.active)
+            pam.abort();
         root.indicatorState = "idle";
         root.arcSweep = 0;
 
@@ -198,10 +205,29 @@ Singleton {
         }
     }
 
-    function onFailure(text) {
+    // A failure flashes the ring in the contrast colour for as long as a success
+    // takes to turn the dial, then lets it go back to idle.
+    function flashFailure() {
         root.indicatorState = "wrong";
-        root.arcSweep = 0;
+        failureFlashTimer.restart();
+    }
+
+    Timer {
+        id: failureFlashTimer
+
+        interval: root.dialDuration
+        repeat: false
+
+        onTriggered: {
+            if (root.indicatorState === "wrong")
+                root.indicatorState = "idle";
+        }
+    }
+
+    function onFailure(text) {
         root.password = "";
+        root.arcSweep = 0;
+        root.flashFailure();
         root.message = text;
         root.messageIsError = true;
 
@@ -299,9 +325,68 @@ Singleton {
         onError: err => root.onFailure("PAM ERROR: " + PamError.toString(err).toUpperCase())
     }
 
+    readonly property string fingerprintConfig: "blueshell-fingerprint"
+    readonly property bool fingerprintActive: fprintPam.active
+
+    property bool fingerprintUnavailable: false
+    property real fingerprintStarted: 0
+
+    function startFingerprint() {
+        if (!Config.lockFingerprint || root.fingerprintUnavailable || fprintPam.active || root.unlocking)
+            return;
+        if (!root.shouldLock && !root.verifying)
+            return;
+
+        root.fingerprintStarted = Date.now();
+        if (!fprintPam.start()) {
+            console.warn("lock: PAM service \"" + root.fingerprintConfig + "\" did not start; fingerprint unlock is off");
+            root.fingerprintUnavailable = true;
+        }
+    }
+
+    function stopFingerprint() {
+        if (fprintPam.active)
+            fprintPam.abort();
+    }
+
+    function wake() {
+        root.startFingerprint();
+    }
+
+    PamContext {
+        id: fprintPam
+
+        config: root.fingerprintConfig
+        configDirectory: "/etc/pam.d"
+
+        onMessageChanged: {
+            if (message.length > 0 && messageIsError && !root.unlocking)
+                root.flashFailure();
+        }
+
+        onCompleted: result => {
+            if (result === PamResult.Success) {
+                if (root.verifying) {
+                    root.finishVerify(true, fprintPam.config);
+                    return;
+                }
+                root.beginUnlock();
+                return;
+            }
+
+            // an instant failure means no reader or no enrolled finger: stop
+            // re-arming on every key press until the next lock
+            if (Date.now() - root.fingerprintStarted < 2000)
+                root.fingerprintUnavailable = true;
+        }
+
+        onError: err => {
+            console.warn("lock: fingerprint PAM error: " + PamError.toString(err));
+            root.fingerprintUnavailable = true;
+        }
+    }
+
     IdleMonitor {
-        // Caffeine takes the idle lock out of the loop entirely: while it is on,
-        // there is no timeout to reach, not a longer one.
         enabled: Config.lockIdleTimeout > 0 && !root.active && !CaffeineService.active
         timeout: Config.lockIdleTimeout
         respectInhibitors: true
@@ -494,12 +579,18 @@ Singleton {
     }
 
     onShouldLockChanged: {
-        if (!root.shouldLock)
+        if (!root.shouldLock) {
             root.resetAttempt();
+            root.stopFingerprint();
+        }
         root.reportState();
     }
 
-    onSecureChanged: root.reportState()
+    onSecureChanged: {
+        if (root.secure)
+            root.startFingerprint();
+        root.reportState();
+    }
 
     Connections {
         target: BackendService

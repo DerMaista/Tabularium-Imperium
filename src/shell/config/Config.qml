@@ -21,6 +21,7 @@ Singleton {
     property alias lockMaxFailures: lockConfig.maxFailures
     property alias lockoutSeconds: lockConfig.lockoutSeconds
     property alias lockOnStartup: lockConfig.lockOnStartup
+    property alias lockFingerprint: lockConfig.fingerprint
     property alias barHeight: barConfig.height
     property alias wallpaperDir: wallpaperConfig.wallpaperDir
     property alias wallpaperCmd: wallpaperConfig.wallpaperCmd
@@ -131,6 +132,7 @@ Singleton {
                 property int maxFailures: 3
                 property int lockoutSeconds: 10
                 property bool lockOnStartup: false
+                property bool fingerprint: true
             }
 
             property JsonObject wallpaper_switcher: JsonObject {

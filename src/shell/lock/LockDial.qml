@@ -28,14 +28,39 @@ Item {
         rotation: root.turn
 
         Shape {
+            id: baseRing
+
             anchors.fill: parent
             preferredRendererType: Shape.CurveRenderer
 
+            SequentialAnimation on opacity {
+                running: LockService.fingerprintActive
+                loops: Animation.Infinite
+                alwaysRunToEnd: true
+
+                NumberAnimation {
+                    to: 0.45
+                    duration: 900
+                    easing.type: Easing.InOutSine
+                }
+                NumberAnimation {
+                    to: 1.0
+                    duration: 900
+                    easing.type: Easing.InOutSine
+                }
+            }
+
             ShapePath {
-                strokeColor: Colors.background
+                strokeColor: LockService.fingerprintActive ? Colors.accent : Colors.background
                 strokeWidth: root.ringWidth
                 fillColor: "transparent"
                 capStyle: ShapePath.FlatCap
+
+                Behavior on strokeColor {
+                    ColorAnimation {
+                        duration: 250
+                    }
+                }
 
                 PathAngleArc {
                     centerX: root.diameter / 2
@@ -81,6 +106,8 @@ Item {
     }
 
     Shape {
+        id: statusRing
+
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
 
@@ -92,8 +119,21 @@ Item {
             return 0;
         }
 
+        property bool failed: false
+
+        Connections {
+            target: LockService
+
+            function onIndicatorStateChanged() {
+                if (LockService.indicatorState === "wrong")
+                    statusRing.failed = true;
+                else if (LockService.indicatorState === "verifying")
+                    statusRing.failed = false;
+            }
+        }
+
         ShapePath {
-            strokeColor: Colors.primary
+            strokeColor: statusRing.failed ? Colors.contrast : Colors.primary
             strokeWidth: root.ringWidth
             fillColor: "transparent"
 

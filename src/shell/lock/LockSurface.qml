@@ -15,6 +15,15 @@ Item {
         screen: root.screen
     }
 
+    MouseArea {
+        anchors.fill: parent
+
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+
+        onPositionChanged: LockService.wake()
+    }
+
     TextInput {
         id: input
 
@@ -24,6 +33,11 @@ Item {
 
         echoMode: TextInput.Password
         enabled: !LockService.authenticating && !LockService.lockedOut
+
+        Keys.onPressed: event => {
+            LockService.wake();
+            event.accepted = false;
+        }
 
         onTextChanged: {
             if (LockService.password !== text)

@@ -25,7 +25,8 @@
         "flyout": true,
         "maxFailures": 3,
         "lockoutSeconds": 10,
-        "lockOnStartup": false
+        "lockOnStartup": false,
+        "fingerprint": true
     },
     "animation": {
         "colorDuration": 400,

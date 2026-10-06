@@ -12,10 +12,12 @@ Singleton {
     readonly property color targetBackground: adapter.background
     readonly property color targetPrimary: adapter.primary
     readonly property color targetAccent: adapter.accent
+    readonly property color targetContrast: adapter.contrast
 
     property color background: root.targetBackground
     property color primary: root.targetPrimary
     property color accent: root.targetAccent
+    property color contrast: root.targetContrast
 
     property bool loadedOnce: false
 
@@ -51,6 +53,16 @@ Singleton {
         }
     }
 
+    Behavior on contrast {
+        enabled: root.animating
+
+        ColorAnimation {
+            duration: Config.colorAnimDuration
+            easing.type: Config.colorAnimEasing
+            easing.bezierCurve: Config.colorAnimBezier
+        }
+    }
+
     FileView {
         id: file
 
@@ -70,6 +82,7 @@ Singleton {
             property string background: "#0040a1"
             property string primary: "#d9fdff"
             property string accent: "#2872cf"
+            property string contrast: "#00e5ff"
         }
     }
 }
