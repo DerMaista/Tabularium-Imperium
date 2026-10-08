@@ -52,7 +52,7 @@ Item {
             anchors.centerIn: parent
             visible: root.showSigil
 
-            readonly property real size: Math.min(parent.width, parent.height) * 0.9
+            readonly property real size: Math.min(parent.width, parent.height) * 0.5
             width: centerLogo.size
             height: centerLogo.size
 

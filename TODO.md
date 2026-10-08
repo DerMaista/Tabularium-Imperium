@@ -1,5 +1,3 @@
-- add trayicon widget
-- add brightness + sound OSDs
+- Mangowm Keymode & Layout indicator via mmsg => position right next to Workspaceindicator
 
 # Later
-- install nixos on laptop
