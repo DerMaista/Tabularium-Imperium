@@ -11,13 +11,13 @@
   env.GREET = "devenv";
 
   # https://devenv.sh/packages/
-  packages = [ pkgs.git pkgs.qmllint pkgs.quickshell ];
+  packages = [ pkgs.git pkgs.kdePackages.qtdeclarative pkgs.quickshell ];
 
   # https://devenv.sh/languages/
   languages = {
     go = {
       enable = true;
-      version = "1.26.0"
+      version = "1.26.0";
     };
   };
   scripts.execBlueshell.exec = ''
