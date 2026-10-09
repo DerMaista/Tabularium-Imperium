@@ -34,6 +34,9 @@ Singleton {
             if (n.lastGeneration)
                 return;
 
+            if (root.silenced(n))
+                return;
+
             root.raisePopup(n);
         }
     }
@@ -262,6 +265,37 @@ Singleton {
         const target = root.find(id);
         if (target)
             target.dismiss();
+    }
+
+    // Do not disturb only holds back the popups: everything still lands in the
+    // history, and critical notifications still break through.
+    PersistentProperties {
+        id: persisted
+
+        reloadableId: "notificationService"
+
+        property bool dnd: false
+    }
+
+    readonly property bool dnd: persisted.dnd
+
+    function silenced(n) {
+        return root.dnd && n.urgency !== NotificationUrgency.Critical;
+    }
+
+    function setDnd(enabled) {
+        persisted.dnd = enabled;
+        if (!enabled)
+            return;
+
+        for (const n of root.popups) {
+            if (root.silenced(n))
+                root.hidePopup(n.id);
+        }
+    }
+
+    function toggleDnd() {
+        root.setDnd(!root.dnd);
     }
 
     property bool centerOpen: false

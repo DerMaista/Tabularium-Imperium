@@ -48,6 +48,7 @@ type mangoWatcher struct {
 	perMonitor map[string]map[string]any // monitor name -> last published payload
 	digests    map[string]string         // monitor name -> digest of that payload
 	connected  bool
+	keymode    string
 
 	// onMonitors hears the set of monitor names whenever it changes.
 	onMonitors func([]string)
@@ -78,18 +79,27 @@ func (m *mangoWatcher) start(ctx context.Context) {
 		log.Warnf("compositor socket unavailable (%s unset or missing); workspaces disabled", mangoEnvVar)
 		return
 	}
-	go m.watchLoop(ctx)
+	go m.watchLoop(ctx, "all-tags", m.applyTagsLine, m.setConnected)
+	go m.watchLoop(ctx, "keymode", m.applyKeymodeLine, nil)
 }
 
-func (m *mangoWatcher) watchLoop(ctx context.Context) {
+func (m *mangoWatcher) setConnected(up bool) {
+	m.mu.Lock()
+	m.connected = up
+	m.mu.Unlock()
+}
+
+// watchLoop holds one `watch <stream>` connection open, hands every line to
+// apply, and redials whenever the compositor drops it.
+func (m *mangoWatcher) watchLoop(ctx context.Context, stream string, apply func([]byte), onLink func(bool)) {
 	for {
-		if err := m.watch(ctx); err != nil && ctx.Err() == nil {
-			log.Warnf("compositor watch ended: %v; retrying in %s", err, mangoRetryInterval)
+		if err := m.watch(ctx, stream, apply, onLink); err != nil && ctx.Err() == nil {
+			log.Warnf("compositor %s watch ended: %v; retrying in %s", stream, err, mangoRetryInterval)
 		}
 
-		m.mu.Lock()
-		m.connected = false
-		m.mu.Unlock()
+		if onLink != nil {
+			onLink(false)
+		}
 
 		select {
 		case <-ctx.Done():
@@ -99,7 +109,7 @@ func (m *mangoWatcher) watchLoop(ctx context.Context) {
 	}
 }
 
-func (m *mangoWatcher) watch(ctx context.Context) error {
+func (m *mangoWatcher) watch(ctx context.Context, stream string, apply func([]byte), onLink func(bool)) error {
 	conn, err := net.DialTimeout("unix", mangoSocketPath(), mangoDialTimeout)
 	if err != nil {
 		return err
@@ -111,29 +121,70 @@ func (m *mangoWatcher) watch(ctx context.Context) error {
 		conn.Close()
 	}()
 
-	if _, err := fmt.Fprint(conn, "watch all-tags\n"); err != nil {
+	if _, err := fmt.Fprintf(conn, "watch %s\n", stream); err != nil {
 		return err
 	}
 
-	m.mu.Lock()
-	m.connected = true
-	m.mu.Unlock()
-	log.Infof("watching compositor tags on %s", mangoSocketPath())
+	if onLink != nil {
+		onLink(true)
+	}
+	log.Infof("watching compositor %s on %s", stream, mangoSocketPath())
 
 	scanner := bufio.NewScanner(conn)
 	scanner.Buffer(make([]byte, 16*1024), 1024*1024)
 	for scanner.Scan() {
-		var payload mangoAllTags
-		if err := json.Unmarshal(scanner.Bytes(), &payload); err != nil {
-			log.Debugf("compositor: unparseable line: %v", err)
-			continue
-		}
-		m.apply(payload)
+		apply(scanner.Bytes())
 	}
 	if err := scanner.Err(); err != nil {
 		return err
 	}
 	return errors.New("compositor closed the connection")
+}
+
+func (m *mangoWatcher) applyTagsLine(line []byte) {
+	var payload mangoAllTags
+	if err := json.Unmarshal(line, &payload); err != nil {
+		log.Debugf("compositor: unparseable tags line: %v", err)
+		return
+	}
+	m.apply(payload)
+}
+
+func (m *mangoWatcher) applyKeymodeLine(line []byte) {
+	var payload struct {
+		Keymode string `json:"keymode"`
+	}
+	if err := json.Unmarshal(line, &payload); err != nil {
+		log.Debugf("compositor: unparseable keymode line: %v", err)
+		return
+	}
+
+	m.mu.Lock()
+	changed := payload.Keymode != m.keymode
+	m.keymode = payload.Keymode
+	m.mu.Unlock()
+
+	if changed {
+		m.publishKeymode()
+	}
+}
+
+func (m *mangoWatcher) keymodeEvent() map[string]any {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return map[string]any{"keymode": m.keymode}
+}
+
+func (m *mangoWatcher) publishKeymode() { m.bus.Publish(TopicKeymode, m.keymodeEvent()) }
+
+func (m *mangoWatcher) republishKeymode() {
+	m.mu.Lock()
+	known := m.keymode != ""
+	m.mu.Unlock()
+
+	if known {
+		m.publishKeymode()
+	}
 }
 
 func (m *mangoWatcher) apply(payload mangoAllTags) {
@@ -166,11 +217,15 @@ func monitorEvent(mon mangoMonitor) map[string]any {
 	tags := make([]map[string]any, 0, len(mon.Tags))
 	activeTag := 0
 	activeClients := 0
+	layout := ""
 
 	for _, tag := range mon.Tags {
 		if tag.IsActive {
 			activeTag = tag.Index
 			activeClients += tag.ClientCount
+			if layout == "" {
+				layout = tag.Layout
+			}
 		}
 		tags = append(tags, map[string]any{
 			"index":   tag.Index,
@@ -184,6 +239,7 @@ func monitorEvent(mon mangoMonitor) map[string]any {
 		"monitor":       mon.Monitor,
 		"activeTag":     activeTag,
 		"activeClients": activeClients,
+		"layout":        layout,
 		"tags":          tags,
 	}
 }
@@ -211,6 +267,9 @@ func (m *mangoWatcher) handle(_ context.Context, w *ipc.ConnWriter, req ipc.Requ
 		}
 		m.mu.Unlock()
 		ipc.Respond(w, req.ID, map[string]any{"monitors": monitors})
+
+	case "workspaces.keymode":
+		ipc.Respond(w, req.ID, m.keymodeEvent())
 
 	case "workspaces.dispatch":
 		command, err := params.StringNonEmpty(req.Params, "command")
@@ -318,6 +377,7 @@ func (m *mangoWatcher) info() map[string]any {
 		"socket":    mangoSocketPath(),
 		"connected": m.connected,
 		"monitors":  len(m.perMonitor),
+		"keymode":   m.keymode,
 	}
 }
 

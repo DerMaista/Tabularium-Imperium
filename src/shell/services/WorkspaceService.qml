@@ -13,6 +13,9 @@ Singleton {
 
     property int minActiveClients: 0
 
+    // Compositor-wide: mango has one keymode, not one per output.
+    property string keymode: "default"
+
     signal monitorUpdated(string name)
 
     function tagsFor(name) {
@@ -23,6 +26,11 @@ Singleton {
     function activeTagFor(name) {
         const entry = root.monitors[name];
         return entry ? entry.activeTag : 0;
+    }
+
+    function layoutFor(name) {
+        const entry = root.monitors[name];
+        return entry && entry.layout ? entry.layout : "";
     }
 
     function dispatch(command) {
@@ -61,9 +69,15 @@ Singleton {
             root.applyMonitor(data);
         }
 
+        function onKeymodeEvent(data) {
+            if (data && data.keymode)
+                root.keymode = data.keymode;
+        }
+
         function onLinkDown() {
             root.monitors = ({});
             root.minActiveClients = 0;
+            root.keymode = "default";
         }
     }
 }

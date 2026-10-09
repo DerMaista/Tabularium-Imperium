@@ -186,6 +186,29 @@ ShellRoot {
         }
     }
 
+    IpcHandler {
+        target: "dnd"
+
+        function toggle(): string {
+            NotificationService.toggleDnd();
+            return NotificationService.dnd ? "DND_ON" : "DND_OFF";
+        }
+
+        function on(): string {
+            NotificationService.setDnd(true);
+            return "DND_ON";
+        }
+
+        function off(): string {
+            NotificationService.setDnd(false);
+            return "DND_OFF";
+        }
+
+        function status(): string {
+            return NotificationService.dnd ? "DND_ON" : "DND_OFF";
+        }
+    }
+
     Variants {
         model: Quickshell.screens
 

@@ -328,6 +328,11 @@ Singleton {
     readonly property string fingerprintConfig: "blueshell-fingerprint"
     readonly property bool fingerprintActive: fprintPam.active
 
+    // a finger is on the reader while fprintd is listening; drivers that do
+    // not report finger status never set this
+    property bool fingerPresent: false
+    readonly property bool fingerprintReading: root.fingerprintActive && root.fingerPresent
+
     property bool fingerprintUnavailable: false
     property real fingerprintStarted: 0
 
@@ -601,8 +606,16 @@ Singleton {
             root.requestLock(data.source === "user" || data.source === "logind");
         }
 
+        function onFingerprintEvent(data) {
+            root.fingerPresent = !!(data && data.present);
+        }
+
         function onLinkUp() {
             root.reportState();
+        }
+
+        function onLinkDown() {
+            root.fingerPresent = false;
         }
     }
 

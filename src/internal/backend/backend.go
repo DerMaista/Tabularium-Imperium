@@ -13,15 +13,17 @@ import (
 const apiVersion = 1
 
 const (
-	TopicMetrics    = "metrics"
-	TopicWorkspaces = "workspaces"
-	TopicNetwork    = "network"
-	TopicClock      = "clock"
-	TopicTheme      = "theme"
-	TopicLock       = "lock"
-	TopicSigil      = "sigil"
-	TopicBrightness = "brightness"
-	TopicCaffeine   = "caffeine"
+	TopicMetrics     = "metrics"
+	TopicWorkspaces  = "workspaces"
+	TopicNetwork     = "network"
+	TopicClock       = "clock"
+	TopicTheme       = "theme"
+	TopicLock        = "lock"
+	TopicSigil       = "sigil"
+	TopicBrightness  = "brightness"
+	TopicCaffeine    = "caffeine"
+	TopicKeymode     = "keymode"
+	TopicFingerprint = "fingerprint"
 )
 
 type Backend struct {
@@ -29,16 +31,17 @@ type Backend struct {
 	cancel context.CancelFunc
 	done   chan error
 
-	metrics    *metricsSampler
-	workspaces *mangoWatcher
-	network    *networkWatcher
-	clock      *clockTicker
-	theme      *themeManager
-	power      *powerManager
-	lock       *lockManager
-	sigil      *sigilManager
-	brightness *brightnessManager
-	caffeine   *caffeineManager
+	metrics     *metricsSampler
+	workspaces  *mangoWatcher
+	network     *networkWatcher
+	clock       *clockTicker
+	theme       *themeManager
+	power       *powerManager
+	lock        *lockManager
+	sigil       *sigilManager
+	brightness  *brightnessManager
+	caffeine    *caffeineManager
+	fingerprint *fingerprintWatcher
 }
 
 func Boot(ctx context.Context) (*Backend, error) {
@@ -59,6 +62,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.sigil = newSigilManager(bus)
 	b.brightness = newBrightnessManager(bus)
 	b.caffeine = newCaffeineManager(bus)
+	b.fingerprint = newFingerprintWatcher(bus)
 	b.power = newPowerManager(b.lock)
 	b.workspaces.onMonitors = b.brightness.monitorsChanged
 
@@ -82,7 +86,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 
 		CapabilitiesFunc: b.capabilities,
 
-		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness, TopicCaffeine},
+		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness, TopicCaffeine, TopicKeymode, TopicFingerprint},
 
 		OnSubscribe: b.replaySnapshots,
 	}, mux.ServeIPC)
@@ -102,6 +106,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.sigil.start(ctx)
 	b.brightness.start(ctx)
 	b.caffeine.start(ctx)
+	b.fingerprint.start(ctx)
 
 	go func() {
 		defer func() {
@@ -150,6 +155,9 @@ func (b *Backend) capabilities() []string {
 	if b.caffeine.available() {
 		caps = append(caps, "caffeine")
 	}
+	if b.fingerprint.available() {
+		caps = append(caps, "fingerprint")
+	}
 	return caps
 }
 
@@ -175,6 +183,10 @@ func (b *Backend) replaySnapshots(topics []string, _ *ipc.Subscriber) {
 				b.brightness.republish()
 			case TopicCaffeine:
 				b.caffeine.republish()
+			case TopicKeymode:
+				b.workspaces.republishKeymode()
+			case TopicFingerprint:
+				b.fingerprint.republish()
 			}
 		}
 	}()
@@ -194,6 +206,7 @@ func (b *Backend) handleServerInfo(_ context.Context, w *ipc.ConnWriter, req ipc
 		"sigil":        b.sigil.info(),
 		"brightness":   b.brightness.info(),
 		"caffeine":     b.caffeine.info(),
+		"fingerprint":  b.fingerprint.info(),
 	})
 }
 

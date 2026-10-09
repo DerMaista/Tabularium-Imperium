@@ -45,6 +45,15 @@ func notificationCenterCommands() []*cobra.Command {
 	})
 }
 
+func doNotDisturbCommands() []*cobra.Command {
+	return shellIPCCommands("dnd", [][2]string{
+		{"toggle", "Turn do not disturb on in the running shell, or off"},
+		{"on", "Hold back notification popups; critical ones still show"},
+		{"off", "Show notification popups again"},
+		{"status", "Print whether do not disturb is on"},
+	})
+}
+
 func logoutPanelCommands() []*cobra.Command {
 	return shellIPCCommands("logout", [][2]string{
 		{"toggle", "Open the logout panel in the running shell, or close it"},

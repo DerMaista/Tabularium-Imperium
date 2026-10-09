@@ -14,7 +14,7 @@ Singleton {
     readonly property int expectedApiVersion: 1
     property bool connected: false
 
-    readonly property var topics: ["metrics", "workspaces", "network", "clock", "theme", "lock", "sigil", "brightness", "caffeine"]
+    readonly property var topics: ["metrics", "workspaces", "network", "clock", "theme", "lock", "sigil", "brightness", "caffeine", "keymode", "fingerprint"]
 
     signal metricsEvent(var data)
     signal workspacesEvent(var data)
@@ -25,6 +25,8 @@ Singleton {
     signal sigilEvent(var data)
     signal brightnessEvent(var data)
     signal caffeineEvent(var data)
+    signal keymodeEvent(var data)
+    signal fingerprintEvent(var data)
 
     signal linkUp
     signal linkDown
@@ -113,6 +115,12 @@ Singleton {
             break;
         case "caffeine":
             root.caffeineEvent(obj.data);
+            break;
+        case "keymode":
+            root.keymodeEvent(obj.data);
+            break;
+        case "fingerprint":
+            root.fingerprintEvent(obj.data);
             break;
         }
     }

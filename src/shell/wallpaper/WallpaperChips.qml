@@ -42,12 +42,24 @@ Item {
             }
         }
 
+        LayoutIndicator {
+            id: layoutIndicator
+
+            screen: root.screen
+            anchors {
+                left: workspaces.right
+                verticalCenter: parent.top
+                verticalCenterOffset: root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
         Notifications {
             id: notifications
 
             screen: root.screen
             anchors {
-                left: workspaces.right
+                left: layoutIndicator.visible ? layoutIndicator.right : workspaces.right
                 verticalCenter: parent.top
                 verticalCenterOffset: root.strokeWidth / 2
                 margins: root.uniformMargin
@@ -188,9 +200,21 @@ Item {
         }
 
         Caffeine {
+            id: caffeine
+
             screen: root.screen
             anchors {
                 right: brightness.left
+                verticalCenter: parent.bottom
+                verticalCenterOffset: -root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
+        DoNotDisturb {
+            screen: root.screen
+            anchors {
+                right: caffeine.visible ? caffeine.left : brightness.left
                 verticalCenter: parent.bottom
                 verticalCenterOffset: -root.strokeWidth / 2
                 margins: root.uniformMargin

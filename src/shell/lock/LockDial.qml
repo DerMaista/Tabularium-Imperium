@@ -34,7 +34,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
 
             SequentialAnimation on opacity {
-                running: LockService.fingerprintActive
+                running: LockService.fingerprintReading
                 loops: Animation.Infinite
                 alwaysRunToEnd: true
 

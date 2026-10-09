@@ -88,6 +88,7 @@ func main() {
 	root.AddCommand(themeCommand())
 	root.AddCommand(logoutCommand())
 	root.AddCommand(notificationsCommand())
+	root.AddCommand(dndCommand())
 	root.AddCommand(lockCommand())
 	root.AddCommand(sigilCommand())
 	root.AddCommand(caffeineCommand())
@@ -127,6 +128,23 @@ func notificationsCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(notificationCenterCommands()...)
+
+	return cmd
+}
+
+func dndCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "dnd",
+		Short: "Turn do not disturb on or off",
+		Long: "While do not disturb is on, the running shell keeps notification popups\n" +
+			"off the screen. Notifications still land in the notification centre,\n" +
+			"and critical ones still pop up.",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+	}
+
+	cmd.AddCommand(doNotDisturbCommands()...)
 
 	return cmd
 }
