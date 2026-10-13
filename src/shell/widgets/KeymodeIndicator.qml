@@ -18,5 +18,5 @@ Chip {
         text: WorkspaceService.keymode
         color: Colors.primary
         font.bold: true
-    }background
+    }
 }
