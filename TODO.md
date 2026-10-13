@@ -1,6 +1,5 @@
 # Now
 - Mangowm Keymode & Layout indicator via mmsg => position right next to Workspaceindicator
-- Do not disturb next to caffeine
 
 
 # Later

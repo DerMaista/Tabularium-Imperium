@@ -54,12 +54,26 @@ Item {
             }
         }
 
+        KeymodeIndicator {
+            id: keymodeIndicator
+
+            screen: root.screen
+            anchors {
+                left: layoutIndicator.visible ? layoutIndicator.right : workspaces.right
+                verticalCenter: parent.top
+                verticalCenterOffset: root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
         Notifications {
             id: notifications
 
             screen: root.screen
             anchors {
-                left: layoutIndicator.visible ? layoutIndicator.right : workspaces.right
+                left: keymodeIndicator.visible ? keymodeIndicator.right
+                    : layoutIndicator.visible ? layoutIndicator.right
+                    : workspaces.right
                 verticalCenter: parent.top
                 verticalCenterOffset: root.strokeWidth / 2
                 margins: root.uniformMargin

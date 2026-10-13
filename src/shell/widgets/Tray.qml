@@ -46,6 +46,7 @@ Chip {
                     size: root.iconSize
                     source: entry.modelData.icon
                     tint: entry.menuOpen || entry.attention ? Colors.background : Colors.primary
+                    shade: entry.color.a > 0 ? entry.color : Colors.background
                 }
 
                 function anchorMenu() {

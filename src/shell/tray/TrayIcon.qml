@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 
 import qs.config
 
@@ -11,6 +10,9 @@ Item {
     property real size: Config.fontsize * 1.2
 
     property color tint: Colors.primary
+
+    // Dark parts of the icon; match whatever sits behind the icon.
+    property color shade: Colors.background
 
     implicitWidth: root.size
     implicitHeight: root.size
@@ -27,15 +29,16 @@ Item {
         sourceSize.width: root.size
         sourceSize.height: root.size
 
-        visible: !Config.trayMonochrome
-    }
+        // Render through a layer so the shader samples the real icon texture;
+        // a hidden Image never produces one.
+        layer.enabled: Config.trayMonochrome
+        layer.smooth: true
+        layer.samplerName: "src"
+        layer.effect: ShaderEffect {
+            property color tintColor: root.tint
+            property color shadeColor: root.shade
 
-    MultiEffect {
-        anchors.fill: parent
-
-        visible: Config.trayMonochrome
-        source: image
-        colorization: 1
-        colorizationColor: root.tint
+            fragmentShader: Qt.resolvedUrl("../shaders/tint.frag.qsb")
+        }
     }
 }
