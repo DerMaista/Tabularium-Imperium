@@ -12,7 +12,10 @@ Chip {
 
     readonly property bool populated: TrayService.count > 0
 
-    readonly property real iconSize: Config.fontsize * 1.2
+    // Whole pixels with even padding, so the centered icon never gets rounded
+    // off center.
+    readonly property real iconSize: Math.round(Config.fontsize * 1.2)
+    readonly property real iconPadding: Math.round(root.strokeWidth)
 
     visible: root.populated
     implicitWidth: root.populated ? root.contentWidth : 0
@@ -35,8 +38,8 @@ Chip {
 
                 anchors.verticalCenter: parent.verticalCenter
 
-                width: root.iconSize + root.strokeWidth * 2
-                height: root.iconSize + root.strokeWidth * 2
+                width: root.iconSize + root.iconPadding * 2
+                height: root.iconSize + root.iconPadding * 2
 
                 color: entry.menuOpen || entry.attention ? Colors.accent : "transparent"
 

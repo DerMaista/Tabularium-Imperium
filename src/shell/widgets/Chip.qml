@@ -23,8 +23,12 @@ Rectangle {
         color: Colors.accent
     }
 
-    readonly property real contentWidth: layout.implicitWidth + root.uniformMargin
-    readonly property real contentHeight: layout.implicitHeight + root.uniformMargin
+    // Even padding: centerIn snaps to whole pixels, so an odd margin would push
+    // the content half a pixel off center (a full device pixel on scaled outputs).
+    readonly property real padding: Math.round(root.uniformMargin / 2) * 2
+
+    readonly property real contentWidth: layout.implicitWidth + root.padding
+    readonly property real contentHeight: layout.implicitHeight + root.padding
 
     implicitWidth: root.contentWidth
     implicitHeight: root.contentHeight

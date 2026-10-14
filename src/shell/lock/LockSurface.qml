@@ -20,6 +20,7 @@ Item {
 
         hoverEnabled: true
         acceptedButtons: Qt.NoButton
+        cursorShape: Qt.BlankCursor
 
         onPositionChanged: LockService.wake()
     }
