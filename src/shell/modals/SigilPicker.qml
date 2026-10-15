@@ -206,7 +206,7 @@ PanelWindow {
 
                                         property variant src: preview
                                         property color primaryColor: Colors.primary
-                                        property color accentColor: Colors.accent
+                                        property color accentColor: Colors.secondary
 
                                         fragmentShader: Qt.resolvedUrl("../shaders/color_swap.frag.qsb")
                                     }

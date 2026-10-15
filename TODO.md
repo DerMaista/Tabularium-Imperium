@@ -10,7 +10,6 @@
 - wifi picker / VPN toggle
 - bluetooth widget
 - night light / color temperature (gammarelay is already there)
-- power profiles (power-profiles-daemon)
 - low battery warning notification
 - notification grouping per app
 - privacy indicators (mic, camera, screencast in use)

@@ -8,11 +8,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789547579,
-        "narHash": "sha256-OZU+WtikRgQ24nTpht85nRywj+i7YdUYSQBymse80mw=",
+        "lastModified": 1792081292,
+        "narHash": "sha256-5hj37ipotaks6Waw4DMb92WM/b4MPBEobwcsKeaumj8=",
         "owner": "DerMaista",
         "repo": "Chromarium-Mechanicus",
-        "rev": "d3f933b926593642267b9e691af0b3519e262295",
+        "rev": "5456f516541149764a177d2f9846e329263effbf",
         "type": "github"
       },
       "original": {
@@ -62,11 +62,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1791048980,
-        "narHash": "sha256-KgItSKML8Xvte0B7/uGnBDsYzSnnKHcOaiUbgWBXLXw=",
+        "lastModified": 1791956154,
+        "narHash": "sha256-jBYGPi4udQ9uo4KQp9m2J0546nJVQitG15gvZSaVVAs=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "a7868a727837f3c09cee2ce0ca671c76b1589fed",
+        "rev": "55bfb4d7437bd4e09ab7cba58a43bd68eb310044",
         "type": "github"
       },
       "original": {

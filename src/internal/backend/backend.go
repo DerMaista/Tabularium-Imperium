@@ -24,6 +24,7 @@ const (
 	TopicCaffeine    = "caffeine"
 	TopicKeymode     = "keymode"
 	TopicFingerprint = "fingerprint"
+	TopicProfile     = "profile"
 )
 
 type Backend struct {
@@ -42,6 +43,7 @@ type Backend struct {
 	brightness  *brightnessManager
 	caffeine    *caffeineManager
 	fingerprint *fingerprintWatcher
+	profile     *profileManager
 }
 
 func Boot(ctx context.Context) (*Backend, error) {
@@ -63,6 +65,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.brightness = newBrightnessManager(bus)
 	b.caffeine = newCaffeineManager(bus)
 	b.fingerprint = newFingerprintWatcher(bus)
+	b.profile = newProfileManager(bus)
 	b.power = newPowerManager(b.lock)
 	b.workspaces.onMonitors = b.brightness.monitorsChanged
 
@@ -78,6 +81,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	mux.HandlePrefix("sigil.", b.sigil.handle)
 	mux.HandlePrefix("brightness.", b.brightness.handle)
 	mux.HandlePrefix("caffeine.", b.caffeine.handle)
+	mux.HandlePrefix("profile.", b.profile.handle)
 
 	b.srv = ipc.NewServer(ipc.Config{
 		AppName:    "blueshell",
@@ -86,7 +90,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 
 		CapabilitiesFunc: b.capabilities,
 
-		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness, TopicCaffeine, TopicKeymode, TopicFingerprint},
+		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness, TopicCaffeine, TopicKeymode, TopicFingerprint, TopicProfile},
 
 		OnSubscribe: b.replaySnapshots,
 	}, mux.ServeIPC)
@@ -107,6 +111,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.brightness.start(ctx)
 	b.caffeine.start(ctx)
 	b.fingerprint.start(ctx)
+	b.profile.start(ctx)
 
 	go func() {
 		defer func() {
@@ -155,6 +160,9 @@ func (b *Backend) capabilities() []string {
 	if b.caffeine.available() {
 		caps = append(caps, "caffeine")
 	}
+	if b.profile.available() {
+		caps = append(caps, "profile")
+	}
 	if b.fingerprint.available() {
 		caps = append(caps, "fingerprint")
 	}
@@ -187,6 +195,8 @@ func (b *Backend) replaySnapshots(topics []string, _ *ipc.Subscriber) {
 				b.workspaces.republishKeymode()
 			case TopicFingerprint:
 				b.fingerprint.republish()
+			case TopicProfile:
+				b.profile.republish()
 			}
 		}
 	}()
@@ -207,6 +217,7 @@ func (b *Backend) handleServerInfo(_ context.Context, w *ipc.ConnWriter, req ipc
 		"brightness":   b.brightness.info(),
 		"caffeine":     b.caffeine.info(),
 		"fingerprint":  b.fingerprint.info(),
+		"profile":      b.profile.info(),
 	})
 }
 

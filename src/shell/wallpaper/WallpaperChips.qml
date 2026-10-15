@@ -226,9 +226,21 @@ Item {
         }
 
         DoNotDisturb {
+            id: doNotDisturb
+
             screen: root.screen
             anchors {
                 right: caffeine.visible ? caffeine.left : brightness.left
+                verticalCenter: parent.bottom
+                verticalCenterOffset: -root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
+        PowerMode {
+            screen: root.screen
+            anchors {
+                right: doNotDisturb.left
                 verticalCenter: parent.bottom
                 verticalCenterOffset: -root.strokeWidth / 2
                 margins: root.uniformMargin

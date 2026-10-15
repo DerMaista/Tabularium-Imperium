@@ -12,11 +12,13 @@ Singleton {
     readonly property color targetBackground: adapter.background
     readonly property color targetPrimary: adapter.primary
     readonly property color targetAccent: adapter.accent
+    readonly property color targetSecondary: adapter.secondary
     readonly property color targetContrast: adapter.contrast
 
     property color background: root.targetBackground
     property color primary: root.targetPrimary
     property color accent: root.targetAccent
+    property color secondary: root.targetSecondary
     property color contrast: root.targetContrast
 
     property bool loadedOnce: false
@@ -44,6 +46,16 @@ Singleton {
     }
 
     Behavior on accent {
+        enabled: root.animating
+
+        ColorAnimation {
+            duration: Config.colorAnimDuration
+            easing.type: Config.colorAnimEasing
+            easing.bezierCurve: Config.colorAnimBezier
+        }
+    }
+
+    Behavior on secondary {
         enabled: root.animating
 
         ColorAnimation {
@@ -81,6 +93,7 @@ Singleton {
 
             property string background: "#0040a1"
             property string primary: "#d9fdff"
+            property string secondary: "#5ab0ff"
             property string accent: "#2872cf"
             property string contrast: "#00e5ff"
         }
