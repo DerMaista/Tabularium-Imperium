@@ -46,6 +46,12 @@ Item {
         root.runTo(1, duration);
     }
 
+    function snapOut(): void {
+        root.reseed();
+        shatterAnim.stop();
+        shatter.progress = 1;
+    }
+
     function fadeIn(duration: int): void {
         root.runTo(0, duration);
     }

@@ -69,7 +69,11 @@ Singleton {
     property bool dialJoined: false
     property bool unlocking: false
 
+    // panes jump instead of sliding; only ever set for closing, so unlock still animates
+    property bool snapPanes: false
+
     function resetPhases() {
+        root.snapPanes = false;
         root.panesClosed = false;
         root.dialJoined = false;
     }
@@ -77,11 +81,17 @@ Singleton {
     function surfaceReady() {
         if (root.unlocking || root.panesClosed)
             return;
-        root.closePanes();
+        root.closePanes(root.instant);
     }
 
-    function closePanes() {
+    function closePanes(snap) {
+        root.snapPanes = !!snap;
         root.panesClosed = true;
+        if (root.snapPanes) {
+            joinTimer.stop();
+            root.dialJoined = true;
+            return;
+        }
         joinTimer.restart();
     }
 
@@ -116,6 +126,7 @@ Singleton {
         repeat: false
 
         onTriggered: {
+            root.snapPanes = false;
             root.dialJoined = false;
             root.panesClosed = false;
             unlockPaneTimer.restart();
@@ -410,6 +421,13 @@ Singleton {
 
     signal flyOut
 
+    // shatters the windows without animating, for locking instantly
+    signal snapOut
+
+    // the lock was requested without animation: snap everything shut, but keep
+    // the screen capture so unlocking can still reassemble the windows
+    property bool instant: false
+
     readonly property int flyDuration: 650
     readonly property int staggerStep: 60
 
@@ -439,12 +457,15 @@ Singleton {
         if (root.flyoutActive) {
             if (intent === "lock")
                 root.flyoutIntent = "lock";
+            if (intent === "lock" && !animate)
+                root.hurryFlyout();
             return;
         }
 
         root.flyoutIntent = intent;
+        root.instant = !animate;
 
-        if (!animate || !Config.lockFlyout || !BackendService.connected) {
+        if (!Config.lockFlyout || !BackendService.connected) {
             root.finishFlyout();
             return;
         }
@@ -482,23 +503,45 @@ Singleton {
             root.startFlyout();
     }
 
+    // an instant lock arrived while an animated one is under way: skip to the end
+    function hurryFlyout() {
+        root.instant = true;
+        if (!flyTimer.running && !handoffTimer.running)
+            return; // still capturing; startFlyout takes the instant path
+        flyTimer.stop();
+        handoffTimer.stop();
+        root.snapOut();
+        root.closePanes(true);
+        root.finishFlyout();
+    }
+
     function startFlyout() {
-        if (!root.flyoutActive || flyTimer.running)
+        if (!root.flyoutActive || flyTimer.running || handoffTimer.running)
             return;
 
         captureTimeout.stop();
-        root.flyOut();
+        root.flyoutSpan = root.measureFlyout();
 
+        if (root.instant) {
+            root.snapOut();
+            root.closePanes(true);
+            root.finishFlyout();
+            return;
+        }
+
+        root.flyOut();
+        flyTimer.interval = root.flyoutSpan;
+        flyTimer.restart();
+    }
+
+    function measureFlyout() {
         const perMonitor = {};
         let most = 0;
         for (const entry of root.flyoutEntries) {
             perMonitor[entry.monitor] = (perMonitor[entry.monitor] || 0) + 1;
             most = Math.max(most, perMonitor[entry.monitor]);
         }
-
-        root.flyoutSpan = root.flyDuration + root.staggerStep * Math.max(0, most - 1);
-        flyTimer.interval = root.flyoutSpan;
-        flyTimer.restart();
+        return root.flyDuration + root.staggerStep * Math.max(0, most - 1);
     }
 
     property int flyoutSpan: 800

@@ -116,6 +116,18 @@ PanelWindow {
             }
         }
 
+        function onSnapOut() {
+            content.opacity = 1;
+            captureFade.stop();
+            capture.opacity = 0;
+
+            for (let i = 0; i < copies.count; i++) {
+                const copy = copies.itemAt(i);
+                if (copy)
+                    copy.snapOut();
+            }
+        }
+
         function onFlyOut() {
             content.opacity = 1;
             captureFade.start();

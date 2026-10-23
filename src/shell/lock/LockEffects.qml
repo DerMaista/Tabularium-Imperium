@@ -119,6 +119,10 @@ Item {
 
             function onClosedChanged() {
                 slideAnim.stop();
+                if (LockService.snapPanes) {
+                    pane.slide = root.closed ? 1 : 0;
+                    return;
+                }
                 slideAnim.from = pane.slide;
                 slideAnim.to = root.closed ? 1 : 0;
                 slideAnim.start();
