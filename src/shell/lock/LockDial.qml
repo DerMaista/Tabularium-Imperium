@@ -154,24 +154,17 @@ Item {
         }
     }
 
-    Column {
+    RingClock {
         anchors.centerIn: parent
-        spacing: root.diameter * 0.02
 
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: ClockService.time
-            color: Colors.primary
-            font.pixelSize: root.diameter * 0.22
-            font.family: Config.fontfamily
-        }
+        diameter: root.diameter
+    }
 
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: ClockService.date.toUpperCase()
-            color: Colors.accent
-            font.pixelSize: root.diameter * 0.06
-            font.family: Config.fontfamily
-        }
+    Text {
+        anchors.centerIn: parent
+        text: ClockService.date.toUpperCase()
+        color: Colors.accent
+        font.pixelSize: root.diameter * 0.036
+        font.family: Config.fontfamily
     }
 }

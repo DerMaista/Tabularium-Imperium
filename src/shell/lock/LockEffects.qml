@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Shapes
 
 import qs.config
@@ -24,11 +25,68 @@ Item {
     readonly property bool joined: LockService.dialJoined
 
     WallpaperCanvas {
+        id: wallpaper
+
         anchors.fill: parent
 
         screen: root.screen
         showSigil: true
         showChips: true
+    }
+
+    // Limits the blur to a disc around the dial, so it only separates the rings from the sigil.
+    Shape {
+        id: blurMask
+
+        anchors.fill: parent
+        visible: false
+        layer.enabled: true
+
+        ShapePath {
+            strokeColor: "transparent"
+
+            fillGradient: RadialGradient {
+                centerX: root.width / 2
+                centerY: root.height / 2
+                centerRadius: root.dialSize * 0.65
+                focalX: root.width / 2
+                focalY: root.height / 2
+
+                GradientStop {
+                    position: 0.0
+                    color: "white"
+                }
+                GradientStop {
+                    position: 0.75
+                    color: "white"
+                }
+                GradientStop {
+                    position: 1.0
+                    color: "transparent"
+                }
+            }
+
+            PathPolyline {
+                path: [Qt.point(0, 0), Qt.point(root.width, 0), Qt.point(root.width, root.height), Qt.point(0, root.height), Qt.point(0, 0)]
+            }
+        }
+    }
+
+    MultiEffect {
+        id: paneBlur
+
+        anchors.fill: parent
+
+        source: wallpaper
+        autoPaddingEnabled: false
+
+        blurEnabled: true
+        blur: 1.0
+        blurMax: 64
+
+        maskEnabled: true
+        maskSource: blurMask
+        maskSpreadAtMin: 1.0
     }
 
     component Pane: Item {
@@ -67,14 +125,26 @@ Item {
             }
         }
 
+        // Screen-aligned slice of the blurred wallpaper, so it stays put while the pane slides.
+        ShaderEffectSource {
+            x: -pane.x
+            width: root.width
+            height: root.height
+
+            sourceItem: paneBlur
+            hideSource: true
+        }
+
         Rectangle {
             anchors.fill: parent
             color: "black"
+            opacity: 0.8
         }
 
         Shape {
             preferredRendererType: Shape.CurveRenderer
             visible: !root.joined
+            opacity: 0.8
 
             width: root.dialSize
             height: root.dialSize
@@ -98,18 +168,12 @@ Item {
         }
     }
 
-    Item {
-        anchors.fill: parent
-        opacity: 0.8
+    Pane {
+        leftSide: true
+    }
 
-        Pane {
-            leftSide: true
-        }
-
-        Pane {
-            leftSide: false
-        }
-
+    Pane {
+        leftSide: false
     }
 
     LockDial {
