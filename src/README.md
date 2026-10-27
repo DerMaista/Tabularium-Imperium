@@ -159,7 +159,7 @@ Ref { service: MetricsService; module: "disk" }
 `MetricsService` collects the live module names, sorts them, and sends
 `metrics.configure`. The backend reads only those. Delete `Storage.qml` and
 `statfs(2)` stops being called — no other change anywhere. Verified live: with
-the shell up, `getServerInfo` reports exactly `["cpu","disk","memory","uptime"]`,
+the shell up, `getServerInfo` reports exactly `["cpu","disk","gpu","memory","uptime"]`,
 which is precisely what the nine widgets between them ask for.
 
 The `Ref` is destroyed with its widget, including when the widget dies because

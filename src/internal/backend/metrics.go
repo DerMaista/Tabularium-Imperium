@@ -23,6 +23,7 @@ const (
 
 type metricsSampler struct {
 	bus *ipc.EventBus
+	gpu *gpuSampler
 
 	mu       sync.Mutex
 	modules  map[string]bool
@@ -37,6 +38,7 @@ type metricsSampler struct {
 func newMetricsSampler(bus *ipc.EventBus) *metricsSampler {
 	return &metricsSampler{
 		bus:      bus,
+		gpu:      newGPUSampler(),
 		modules:  map[string]bool{"cpu": true, "memory": true},
 		interval: defaultInterval,
 		reconfig: make(chan struct{}, 1),
@@ -183,6 +185,12 @@ func (m *metricsSampler) collect(modules []string, cursor string) (map[string]an
 	if want["memory"] {
 		if mem, err := readMemory(); err == nil {
 			out["memory"] = mem
+		}
+	}
+
+	if want["gpu"] {
+		if gpu, err := m.gpu.read(); err == nil {
+			out["gpu"] = gpu
 		}
 	}
 

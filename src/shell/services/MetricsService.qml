@@ -52,6 +52,10 @@ Singleton {
     property real memPercent: -1
     property int memUsedMB: 0
     property int memTotalMB: 0
+    property real gpuPercent: -1
+    property real vramPercent: -1
+    property int vramUsedMB: 0
+    property int vramTotalMB: 0
     property string diskPercent: "--"
     property real diskUsedGB: 0
     property real diskTotalGB: 0
@@ -70,6 +74,16 @@ Singleton {
             root.memPercent = data.memory.percent;
             root.memUsedMB = data.memory.usedMB;
             root.memTotalMB = data.memory.totalMB;
+        }
+
+        if (data.gpu) {
+            if (data.gpu.percent !== undefined)
+                root.gpuPercent = data.gpu.percent;
+            if (data.gpu.vramPercent !== undefined) {
+                root.vramPercent = data.gpu.vramPercent;
+                root.vramUsedMB = data.gpu.vramUsedMB;
+                root.vramTotalMB = data.gpu.vramTotalMB;
+            }
         }
 
         if (data.disk) {
@@ -115,6 +129,8 @@ Singleton {
         function onLinkDown() {
             root.cpuPercent = -1;
             root.memPercent = -1;
+            root.gpuPercent = -1;
+            root.vramPercent = -1;
             root.diskPercent = "--";
             root.uptimeText = "--";
         }

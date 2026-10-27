@@ -135,7 +135,7 @@ func (b *Backend) Close() {
 }
 
 func (b *Backend) capabilities() []string {
-	caps := []string{"metrics", "metrics.cpu", "metrics.memory", "metrics.disk", "metrics.uptime", "clock"}
+	caps := []string{"metrics", "metrics.cpu", "metrics.memory", "metrics.gpu", "metrics.disk", "metrics.uptime", "clock"}
 	if b.workspaces.available() {
 		caps = append(caps, "workspaces")
 	}

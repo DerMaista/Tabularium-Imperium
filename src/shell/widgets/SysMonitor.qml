@@ -13,6 +13,10 @@ Chip {
         service: MetricsService
         module: "memory"
     }
+    Ref {
+        service: MetricsService
+        module: "gpu"
+    }
 
     ChipText {
         accent: true
@@ -30,5 +34,26 @@ Chip {
 
     ChipText {
         text: MetricsService.memPercent < 0 ? "--" : Math.round(MetricsService.memPercent) + "%"
+    }
+
+    ChipText {
+        accent: true
+        text: "• GPU"
+    }
+
+    ChipText {
+        text: MetricsService.gpuPercent < 0 ? "--" : Math.round(MetricsService.gpuPercent) + "%"
+    }
+
+    // Integrated GPUs share system RAM and have no VRAM of their own.
+    ChipText {
+        visible: MetricsService.vramPercent >= 0
+        accent: true
+        text: "• VRAM"
+    }
+
+    ChipText {
+        visible: MetricsService.vramPercent >= 0
+        text: Math.round(MetricsService.vramPercent) + "%"
     }
 }
