@@ -32,14 +32,33 @@ Singleton {
         });
     }
 
+    // Shows the new profile right away instead of waiting for the daemon to apply
+    // it; the profile event that follows confirms it, an error rolls it back.
     function set(profile) {
-        root.send("profile.set", {
+        if (!root.available || profile === root.active)
+            return;
+
+        const previous = root.active;
+        root.active = profile;
+
+        BackendService.sendRequest("profile.set", {
             "profile": profile
+        }, response => {
+            if (!response.error)
+                return;
+            console.warn("profile: " + response.error);
+            if (root.active === profile)
+                root.active = previous;
         });
     }
 
     function cycle() {
-        root.send("profile.cycle", null);
+        if (root.profiles.length === 0) {
+            root.send("profile.cycle", null);
+            return;
+        }
+        const next = (root.profiles.indexOf(root.active) + 1) % root.profiles.length;
+        root.set(root.profiles[next]);
     }
 
     function step(direction) {

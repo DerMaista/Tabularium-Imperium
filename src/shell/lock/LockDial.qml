@@ -159,12 +159,4 @@ Item {
 
         diameter: root.diameter
     }
-
-    Text {
-        anchors.centerIn: parent
-        text: ClockService.date.toUpperCase()
-        color: Colors.accent
-        font.pixelSize: root.diameter * 0.036
-        font.family: Config.fontfamily
-    }
 }

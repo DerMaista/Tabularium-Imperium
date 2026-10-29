@@ -11,7 +11,7 @@
   env.GREET = "devenv";
 
   # https://devenv.sh/packages/
-  packages = [ pkgs.git pkgs.kdePackages.qtdeclarative pkgs.quickshell ];
+  packages = [ pkgs.kdePackages.qtdeclarative pkgs.quickshell ];
 
   # https://devenv.sh/languages/
   languages = {

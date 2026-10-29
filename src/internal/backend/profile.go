@@ -135,8 +135,17 @@ func (p *profileManager) set(name string) error {
 	}
 
 	log.Infof("profile: %s", name)
-	return conn.Object(profileService, profilePath).
-		SetProperty(profileIface+".ActiveProfile", dbus.MakeVariant(name))
+	if err := conn.Object(profileService, profilePath).
+		SetProperty(profileIface+".ActiveProfile", dbus.MakeVariant(name)); err != nil {
+		return err
+	}
+
+	// Record it now so the response and a quick follow-up cycle see the new
+	// profile without waiting for the PropertiesChanged signal.
+	p.mu.Lock()
+	p.active = name
+	p.mu.Unlock()
+	return nil
 }
 
 func (p *profileManager) cycle() error {

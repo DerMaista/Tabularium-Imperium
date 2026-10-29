@@ -16,20 +16,30 @@ Item {
     property real secondAngle: 0
     property real minuteAngle: 0
     property real hourAngle: 0
+    // False until the first update after becoming visible, so rings start in place.
+    property bool ready: false
 
     width: root.diameter
     height: root.diameter
 
-    // Targets the angle one tick ahead so the linear sweep lands on the real time.
+    // Fires on whole-second boundaries so the seconds ring steps in sync with the
+    // real time; minute and hour rings target one tick ahead so their linear sweep
+    // lands on the real time.
     function update() {
-        const d = new Date(Date.now() + tick.interval);
+        const now = Date.now();
+        tick.interval = 1000 - now % 1000;
+        const d = new Date(now + tick.interval);
         const s = d.getSeconds() + d.getMilliseconds() / 1000;
         const m = d.getMinutes() + s / 60;
         const h = d.getHours() % 12 + m / 60;
-        root.secondAngle = s * 6;
+        root.secondAngle = new Date(now + 50).getSeconds() * 6;
         root.minuteAngle = m * 6;
         root.hourAngle = h * 30;
+        root.ready = true;
     }
+
+    onVisibleChanged: if (!root.visible)
+        root.ready = false
 
     Timer {
         id: tick
@@ -47,11 +57,14 @@ Item {
 
         required property real radius
         required property real angle
+        property bool sweep: true
 
         anchors.fill: parent
         rotation: ring.angle
 
         Behavior on rotation {
+            enabled: ring.sweep && root.ready
+
             RotationAnimation {
                 duration: tick.interval
                 direction: RotationAnimation.Clockwise
@@ -101,5 +114,6 @@ Item {
     Ring {
         radius: root.diameter * 0.20
         angle: root.secondAngle
+        sweep: false
     }
 }
