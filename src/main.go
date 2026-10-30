@@ -101,8 +101,8 @@ func logoutCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logout",
 		Short: "Open or close the logout panel",
-		Long: "Drives the panel of power actions — lock, sleep, hibernate, exit,\n" +
-			"reboot, shutdown — that the running shell draws over the desktop.\n" +
+		Long: "Drives the panel of power actions — lock, sleep, exit, reboot,\n" +
+			"shutdown — that the running shell draws over the desktop.\n" +
 			"The actions themselves go through logind; see `blueshell call power.list`.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()

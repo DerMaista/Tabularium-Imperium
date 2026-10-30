@@ -337,16 +337,17 @@ because the measured curve shape did not match the requested one.
 ## The logout panel
 
 The power glyph in the top-right corner — or `blueshell logout toggle` from a
-compositor keybind — opens a layer-shell overlay with six buttons: LOCK, SLEEP,
-HIBERNATE, EXIT, REBOOT, SHUTDOWN. Escape or a click outside closes it, ←/→
-move, Enter confirms, and the chip inverts while the panel is up. It is the
-`bar/` `LogoutPanel.qml`, same six actions, with three things done differently.
+compositor keybind — opens a layer-shell overlay with five buttons: LOCK, SLEEP,
+EXIT, REBOOT, SHUTDOWN. Escape or a click outside closes it, ←/→ move, Enter
+confirms, and the chip inverts while the panel is up. It is the `bar/`
+`LogoutPanel.qml` minus HIBERNATE, which this machine does not support, with
+three things done differently.
 
 **The actions go through logind, not a shell.** The old panel built a QML
 object per click — `Qt.createQmlObject('… Process { command: ["bash","-c","' +
 cmd + '"] }')` — around `systemctl reboot`, `systemctl poweroff` and
 `loginctl kill-session $XDG_SESSION_ID`. `internal/backend/power.go` calls
-`org.freedesktop.login1.Manager.{Reboot,PowerOff,Suspend,Hibernate,TerminateSession}`
+`org.freedesktop.login1.Manager.{Reboot,PowerOff,Suspend,TerminateSession}`
 on the system bus instead. No `bash`, no command string pasted together in QML,
 no dependency on `systemctl` being on `PATH` — and the request is carried out by
 logind rather than by a process that is about to be killed by what it just asked
@@ -356,15 +357,23 @@ for.
 lock screen below, which blueshell draws itself. It used to spawn `swaylock`.
 
 **Buttons the machine will refuse are dimmed, and say why.** `power.list` asks
-logind `CanReboot` / `CanPowerOff` / `CanSuspend` / `CanHibernate`, each of which
-answers `yes`, `no`, `na` or `challenge`. Anything but `yes` is drawn at 35%,
-declines the click, is skipped by the keyboard walk, and names its reason under
-the row. On this machine that is HIBERNATE — `not supported by this system` —
-which the old panel offered anyway, silently doing nothing when pressed.
+logind `CanReboot` / `CanPowerOff` / `CanSuspend`, each of which answers `yes`,
+`no`, `na` or `challenge`. Anything but `yes` is drawn at 35%, declines the
+click, is skipped by the keyboard walk, and names its reason under the row.
+
+**EXIT asks the compositor to quit; logind is only the fallback.** It sends
+`dispatch quit` over the mango socket, so the session ends the way it would from
+a keybind: mango exits, `sddm-helper` sees its child finish and exits cleanly,
+and SDDM brings its greeter back. `TerminateSession` on the graphical session
+kills the whole scope instead, `sddm-helper` included — SDDM reads the helper's
+exit code 1 as `HELPER_AUTH_ERROR` and deliberately does not restart the
+greeter, leaving a black tty with a blinking cursor. logind is used only when
+the compositor socket is missing or the quit is refused, and then only for the
+session blueshell itself belongs to (`XDG_SESSION_ID`, then `GetSessionByPID`).
 
 **Nothing is preselected.** `selectedIndex` starts at `-1`, so a Return that
 arrives at a panel which just took keyboard focus powers nothing off. The first
-→ lands on LOCK, which is where the row begins because the six are ordered by
+→ lands on LOCK, which is where the row begins because the five are ordered by
 what it costs to get one wrong.
 
 ## Notifications

@@ -19,10 +19,6 @@ Singleton {
             "icon": ""
         },
         {
-            "id": "hibernate",
-            "icon": "󰒲"
-        },
-        {
             "id": "logout",
             "icon": ""
         },

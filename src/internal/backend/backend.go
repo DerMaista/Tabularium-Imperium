@@ -66,7 +66,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.caffeine = newCaffeineManager(bus)
 	b.fingerprint = newFingerprintWatcher(bus)
 	b.profile = newProfileManager(bus)
-	b.power = newPowerManager(b.lock)
+	b.power = newPowerManager(b.lock, b.workspaces)
 	b.workspaces.onMonitors = b.brightness.monitorsChanged
 
 	mux := ipc.NewMux()

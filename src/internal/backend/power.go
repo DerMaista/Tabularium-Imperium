@@ -32,7 +32,6 @@ var powerActions = []powerAction{
 	{id: "reboot", can: "CanReboot", call: "Reboot"},
 	{id: "poweroff", can: "CanPowerOff", call: "PowerOff"},
 	{id: "suspend", can: "CanSuspend", call: "Suspend"},
-	{id: "hibernate", can: "CanHibernate", call: "Hibernate"},
 }
 
 func findPowerAction(id string) (powerAction, bool) {
@@ -50,9 +49,14 @@ type powerManager struct {
 	session string
 
 	lock *lockManager
+	// compositor ends the session for logout: asking mango to quit lets the
+	// display manager see a normal session end and bring its greeter back.
+	compositor *mangoWatcher
 }
 
-func newPowerManager(lock *lockManager) *powerManager { return &powerManager{lock: lock} }
+func newPowerManager(lock *lockManager, compositor *mangoWatcher) *powerManager {
+	return &powerManager{lock: lock, compositor: compositor}
+}
 
 func (p *powerManager) start(ctx context.Context) {
 	conn, err := dbus.ConnectSystemBus()
@@ -68,7 +72,7 @@ func (p *powerManager) start(ctx context.Context) {
 
 	session := resolveSession(conn)
 	if session == "" {
-		log.Warnf("power: no logind session found; logout will be unavailable")
+		log.Warnf("power: no logind session found; logout depends on the compositor")
 	}
 
 	p.mu.Lock()
@@ -122,14 +126,14 @@ func (p *powerManager) unavailableReason(action powerAction) string {
 	conn, session := p.conn, p.session
 	p.mu.Unlock()
 
+	if action.id == "logout" {
+		if p.compositor.available() || (conn != nil && session != "") {
+			return ""
+		}
+		return "no compositor or logind session to end"
+	}
 	if conn == nil {
 		return "logind is not reachable"
-	}
-	if action.id == "logout" {
-		if session == "" {
-			return "no logind session to terminate"
-		}
-		return ""
 	}
 
 	answer, err := query(conn, action.can)
@@ -185,15 +189,43 @@ func (p *powerManager) invoke(id string) error {
 		return nil
 	}
 
+	if action.id == "logout" {
+		return p.logout()
+	}
+
+	p.mu.Lock()
+	conn := p.conn
+	p.mu.Unlock()
+
+	return conn.Object(loginService, dbus.ObjectPath(loginPath)).
+		Call(loginManager+"."+action.call, 0, false).Err
+}
+
+// logout asks the compositor to quit and only falls back to logind when it
+// cannot. TerminateSession kills the whole session scope, sddm-helper included;
+// SDDM reads the helper's death as an authentication error and never restarts
+// its greeter, which leaves a bare tty behind.
+func (p *powerManager) logout() error {
+	if p.compositor.available() {
+		reply, err := p.compositor.dispatch("quit")
+		if err == nil && reply["error"] == nil {
+			return nil
+		}
+		if err == nil {
+			err = fmt.Errorf("%v", reply["error"])
+		}
+		log.Warnf("power: compositor quit failed: %v; falling back to logind", err)
+	}
+
 	p.mu.Lock()
 	conn, session := p.conn, p.session
 	p.mu.Unlock()
 
-	manager := conn.Object(loginService, dbus.ObjectPath(loginPath))
-	if action.id == "logout" {
-		return manager.Call(loginManager+".TerminateSession", 0, session).Err
+	if conn == nil || session == "" {
+		return fmt.Errorf("no compositor or logind session to end")
 	}
-	return manager.Call(loginManager+"."+action.call, 0, false).Err
+	return conn.Object(loginService, dbus.ObjectPath(loginPath)).
+		Call(loginManager+".TerminateSession", 0, session).Err
 }
 
 func (p *powerManager) info() map[string]any {
