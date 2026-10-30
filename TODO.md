@@ -1,10 +1,8 @@
 # Now
 
 # Later
-- app launcher (fuzzy search, .desktop entries, calculator)
 - clipboard history picker
 - emoji / symbol picker
-- calendar popup on clock click
 - media popup: play/pause/next, seek, album art
 - audio device switcher (sinks + sources)
 - wifi picker / VPN toggle
@@ -19,4 +17,4 @@
 - polkit authentication agent
 - removable drive mount notifications (udisks)
 - temperature / GPU / network throughput metrics
-- lock screen: media controls, fancier clock
+- Quotes

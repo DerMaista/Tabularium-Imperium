@@ -44,6 +44,8 @@ in
   };
 
   config = {
+    home.packages = [ blueshell ];
+
     xdg.configFile."tabularium-imperium/config.json" = lib.mkIf managed {
       source = configFile;
     };
