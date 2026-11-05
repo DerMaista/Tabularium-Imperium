@@ -15,6 +15,4 @@
 - focused window title widget
 - window switcher / overview
 - polkit authentication agent
-- removable drive mount notifications (udisks)
-- temperature / GPU / network throughput metrics
 - Quotes

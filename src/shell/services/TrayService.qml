@@ -8,7 +8,7 @@ import Quickshell.Services.SystemTray
 Singleton {
     id: root
 
-    readonly property var items: SystemTray.items.values
+    readonly property var items: SystemTray.items.values.filter(item => item.status !== Status.Passive)
 
     readonly property int count: root.items.length
 
