@@ -95,4 +95,4 @@ I left Arch behind, For the cold and icy Nix, Now the Flake haunts me
 "You know nothing, Jon Snow... about functional programming" - Ygritte
 "Hold the door!... for the next person dealing with this callback hell" - Hodor
 "What is dead may never die... but it may need to be restarted" - Ironborn proverb 
-"Don't try to engineer a nuclear reactor control harnessess at 3 in the morning, kids" - Goose
+"Don't try to engineer a nuclear reactor control harness at 3 in the morning, kids" - Goose

@@ -50,6 +50,12 @@ type mangoWatcher struct {
 	connected  bool
 	keymode    string
 
+	// focus remembers the last focused client per monitor, so every bar can
+	// name its own window and not just the one holding keyboard focus.
+	focus        map[string]mangoFocus
+	focusMonitor string
+	focusDigest  string
+
 	// onMonitors hears the set of monitor names whenever it changes.
 	onMonitors func([]string)
 	monitors   string
@@ -60,7 +66,15 @@ func newMangoWatcher(bus *ipc.EventBus) *mangoWatcher {
 		bus:        bus,
 		perMonitor: map[string]map[string]any{},
 		digests:    map[string]string{},
+		focus:      map[string]mangoFocus{},
 	}
+}
+
+type mangoFocus struct {
+	ID      int    `json:"id"`
+	Title   string `json:"title"`
+	AppID   string `json:"appid"`
+	Monitor string `json:"monitor"`
 }
 
 func mangoSocketPath() string { return os.Getenv(mangoEnvVar) }
@@ -81,6 +95,90 @@ func (m *mangoWatcher) start(ctx context.Context) {
 	}
 	go m.watchLoop(ctx, "all-tags", m.applyTagsLine, m.setConnected)
 	go m.watchLoop(ctx, "keymode", m.applyKeymodeLine, nil)
+	go m.watchLoop(ctx, "focusing-client", m.applyFocusLine, nil)
+}
+
+func (m *mangoWatcher) applyFocusLine(line []byte) {
+	var client mangoFocus
+	if err := json.Unmarshal(line, &client); err != nil {
+		log.Debugf("compositor: unparseable focus line: %v", err)
+		return
+	}
+
+	m.mu.Lock()
+	if client.ID == 0 || client.Monitor == "" {
+		// Nothing focused: keep each monitor's last window, only drop the
+		// marker of which one holds focus.
+		m.focusMonitor = ""
+	} else {
+		for name, prev := range m.focus {
+			if prev.ID == client.ID && name != client.Monitor {
+				delete(m.focus, name)
+			}
+		}
+		m.focus[client.Monitor] = client
+		m.focusMonitor = client.Monitor
+	}
+	m.mu.Unlock()
+
+	m.publishFocusIfChanged()
+}
+
+// forgetEmptyFocus drops the remembered window of a monitor whose visible
+// tags hold no clients, so closing the last window clears its title.
+func (m *mangoWatcher) forgetEmptyFocus(monitor string, activeClients int) {
+	if activeClients > 0 {
+		return
+	}
+	m.mu.Lock()
+	_, had := m.focus[monitor]
+	delete(m.focus, monitor)
+	m.mu.Unlock()
+
+	if had {
+		m.publishFocusIfChanged()
+	}
+}
+
+func (m *mangoWatcher) focusEvent() map[string]any {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.focusEventLocked()
+}
+
+func (m *mangoWatcher) focusEventLocked() map[string]any {
+	monitors := make(map[string]any, len(m.focus))
+	for name, c := range m.focus {
+		monitors[name] = map[string]any{
+			"id":    c.ID,
+			"title": c.Title,
+			"appId": c.AppID,
+		}
+	}
+	return map[string]any{"focused": m.focusMonitor, "monitors": monitors}
+}
+
+func (m *mangoWatcher) publishFocusIfChanged() {
+	m.mu.Lock()
+	event := m.focusEventLocked()
+	digest, _ := json.Marshal(event)
+	changed := string(digest) != m.focusDigest
+	m.focusDigest = string(digest)
+	m.mu.Unlock()
+
+	if changed {
+		m.bus.Publish(TopicFocus, event)
+	}
+}
+
+func (m *mangoWatcher) republishFocus() {
+	m.mu.Lock()
+	known := m.focusDigest != ""
+	m.mu.Unlock()
+
+	if known {
+		m.bus.Publish(TopicFocus, m.focusEvent())
+	}
 }
 
 func (m *mangoWatcher) setConnected(up bool) {
@@ -192,6 +290,7 @@ func (m *mangoWatcher) apply(payload mangoAllTags) {
 
 	for _, mon := range payload.AllTags {
 		event := monitorEvent(mon)
+		m.forgetEmptyFocus(mon.Monitor, event["activeClients"].(int))
 
 		digest, err := json.Marshal(event)
 		if err != nil {
@@ -270,6 +369,9 @@ func (m *mangoWatcher) handle(_ context.Context, w *ipc.ConnWriter, req ipc.Requ
 
 	case "workspaces.keymode":
 		ipc.Respond(w, req.ID, m.keymodeEvent())
+
+	case "workspaces.focus":
+		ipc.Respond(w, req.ID, m.focusEvent())
 
 	case "workspaces.dispatch":
 		command, err := params.StringNonEmpty(req.Params, "command")
@@ -378,6 +480,7 @@ func (m *mangoWatcher) info() map[string]any {
 		"connected": m.connected,
 		"monitors":  len(m.perMonitor),
 		"keymode":   m.keymode,
+		"focused":   m.focusMonitor,
 	}
 }
 

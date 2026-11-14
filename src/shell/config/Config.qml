@@ -16,6 +16,7 @@ Singleton {
     property alias notificationsPopupLimit: notificationsConfig.popupLimit
     property alias osdTimeout: osdConfig.timeout
     property alias trayMonochrome: trayConfig.monochrome
+    property alias privacyIgnore: privacyConfig.ignore
     property alias lockIdleTimeout: lockConfig.idleTimeout
     property alias lockFlyout: lockConfig.flyout
     property alias lockMaxFailures: lockConfig.maxFailures
@@ -92,6 +93,13 @@ Singleton {
                 id: trayConfig
 
                 property bool monochrome: true
+            }
+
+            property JsonObject privacy: JsonObject {
+                id: privacyConfig
+
+                // Application names never reported by the privacy indicator.
+                property var ignore: []
             }
 
             property JsonObject bar: JsonObject {

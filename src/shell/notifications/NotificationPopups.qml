@@ -43,19 +43,20 @@ PanelWindow {
         spacing: root.uniformMargin / 2
 
         Repeater {
-            model: NotificationService.visiblePopups
+            model: NotificationService.visiblePopupGroups
 
             delegate: NotificationCard {
                 required property var modelData
 
                 Layout.fillWidth: true
 
-                notification: modelData
+                notification: modelData.notifications[0]
+                stackCount: modelData.notifications.length - 1
                 uniformMargin: root.uniformMargin
                 strokeWidth: root.strokeWidth
                 clickable: true
 
-                onClicked: NotificationService.hidePopup(modelData.id)
+                onClicked: NotificationService.hidePopupGroup(modelData.key)
             }
         }
 

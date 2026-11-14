@@ -161,20 +161,120 @@ PanelWindow {
                 spacing: root.uniformMargin / 2
                 boundsBehavior: Flickable.StopAtBounds
 
-                model: NotificationService.history
+                model: NotificationService.groups
 
-                delegate: NotificationCard {
+                delegate: Column {
+                    id: group
+
                     required property var modelData
 
+                    readonly property int total: group.modelData.notifications.length
+                    readonly property bool expanded: NotificationService.isExpanded(group.modelData.key)
+                    readonly property var shown: group.expanded ? group.modelData.notifications : group.modelData.notifications.slice(0, 1)
+
                     width: list.width
+                    spacing: root.strokeWidth * 2
 
-                    notification: modelData
-                    uniformMargin: root.uniformMargin
-                    strokeWidth: root.strokeWidth
-                    showTime: true
-                    showClose: true
+                    Item {
+                        width: parent.width
+                        height: groupName.implicitHeight
 
-                    onCloseRequested: NotificationService.dismiss(modelData)
+                        Text {
+                            id: groupName
+
+                            anchors.left: parent.left
+                            width: Math.min(implicitWidth, parent.width - groupActions.width - groupCount.implicitWidth - root.uniformMargin)
+                            text: (group.modelData.name || "UNKNOWN").toUpperCase()
+                            color: Colors.accent
+                            font.pixelSize: Config.fontsize - 2
+                            font.family: Config.fontfamily
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            id: groupCount
+
+                            anchors {
+                                left: groupName.right
+                                leftMargin: root.uniformMargin / 3
+                                baseline: groupName.baseline
+                            }
+
+                            visible: group.total > 1
+                            text: group.total
+                            color: Colors.accent
+                            opacity: 0.7
+                            font.pixelSize: Config.fontsize - 3
+                            font.family: Config.fontfamily
+                        }
+
+                        Row {
+                            id: groupActions
+
+                            anchors {
+                                right: parent.right
+                                baseline: groupName.baseline
+                            }
+                            spacing: root.uniformMargin / 2
+
+                            Text {
+                                visible: group.total > 1
+                                text: group.expanded ? "LESS" : "+" + (group.total - 1) + " MORE"
+                                color: expandArea.containsMouse ? Colors.primary : Colors.accent
+                                font.pixelSize: Config.fontsize - 3
+                                font.family: Config.fontfamily
+
+                                MouseArea {
+                                    id: expandArea
+
+                                    anchors.fill: parent
+                                    anchors.margins: -root.strokeWidth * 2
+                                    hoverEnabled: true
+
+                                    onClicked: NotificationService.toggleGroup(group.modelData.key)
+                                }
+                            }
+
+                            Text {
+                                visible: group.total > 1
+                                text: "CLEAR"
+                                color: clearGroupArea.containsMouse ? Colors.primary : Colors.accent
+                                font.pixelSize: Config.fontsize - 3
+                                font.family: Config.fontfamily
+
+                                MouseArea {
+                                    id: clearGroupArea
+
+                                    anchors.fill: parent
+                                    anchors.margins: -root.strokeWidth * 2
+                                    hoverEnabled: true
+
+                                    onClicked: NotificationService.dismissGroup(group.modelData.key)
+                                }
+                            }
+                        }
+                    }
+
+                    Repeater {
+                        model: group.shown
+
+                        delegate: NotificationCard {
+                            required property var modelData
+
+                            width: group.width
+
+                            notification: modelData
+                            uniformMargin: root.uniformMargin
+                            strokeWidth: root.strokeWidth
+                            showTime: true
+                            showClose: true
+                            showApp: false
+
+                            onCloseRequested: NotificationService.dismiss(modelData)
+                        }
+                    }
                 }
             }
         }

@@ -80,6 +80,22 @@ Item {
             }
         }
 
+        WindowTitle {
+            id: windowTitle
+
+            screen: root.screen
+            maximumWidth: clock.x - windowTitle.x - root.uniformMargin
+            anchors {
+                left: notifications.visible ? notifications.right
+                    : keymodeIndicator.visible ? keymodeIndicator.right
+                    : layoutIndicator.visible ? layoutIndicator.right
+                    : workspaces.right
+                verticalCenter: parent.top
+                verticalCenterOffset: root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
         Logout {
             id: logout
 
@@ -130,10 +146,22 @@ Item {
             }
         }
 
-        Tray {
+        Privacy {
+            id: privacy
+
             screen: root.screen
             anchors {
                 right: battery.left
+                verticalCenter: parent.top
+                verticalCenterOffset: root.strokeWidth / 2
+                margins: root.uniformMargin
+            }
+        }
+
+        Tray {
+            screen: root.screen
+            anchors {
+                right: privacy.visible ? privacy.left : battery.left
                 verticalCenter: parent.top
                 verticalCenterOffset: root.strokeWidth / 2
                 margins: root.uniformMargin

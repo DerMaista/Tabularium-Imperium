@@ -28,7 +28,7 @@ internal/backend/
   backend.go         server wiring, capabilities, snapshot replay
   metrics.go         CPU, memory, disk and uptime sampling
   gpu.go             GPU and VRAM usage via sysfs, DRM fdinfo or nvidia-smi
-  mango.go           compositor socket: tags, dispatch, window rects
+  mango.go           compositor socket: tags, focused window, dispatch, window rects
   network.go         NetworkManager over D-Bus
   clock.go           minute-aligned clock
   theme.go           theme listing, Chromarium invocation
@@ -40,6 +40,7 @@ internal/backend/
   brightness.go      brightness topic, gamma fallback via wl-gammarelay-rs
   backlight.go       /sys/class/backlight access via logind
   sigil.go           sigil listing and selection
+  camera.go          which processes hold a /dev/video* node open
 shell/
   shell.qml          entry point, per-screen Variants, IpcHandlers
   services/          BackendService (socket transport) and one service per topic
@@ -147,6 +148,9 @@ are not.
 ## Known limitations
 
 - The compositor client only supports mango.
-- Notifications are not grouped per application, and inline replies are not
-  supported.
+- Inline replies to notifications are not supported.
+- The privacy indicator sees screen casts through PipeWire (the xdg portal)
+  only; tools that use wlr-screencopy directly, like grim or wf-recorder, are
+  not shown. Cameras are seen through PipeWire and by watching /dev/video*,
+  so processes of other users are not shown.
 - `wallpaper_switcher` settings are not read by the shell.

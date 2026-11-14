@@ -25,6 +25,8 @@ const (
 	TopicKeymode     = "keymode"
 	TopicFingerprint = "fingerprint"
 	TopicProfile     = "profile"
+	TopicFocus       = "focus"
+	TopicCamera      = "camera"
 )
 
 type Backend struct {
@@ -44,6 +46,7 @@ type Backend struct {
 	caffeine    *caffeineManager
 	fingerprint *fingerprintWatcher
 	profile     *profileManager
+	camera      *cameraWatcher
 }
 
 func Boot(ctx context.Context) (*Backend, error) {
@@ -66,6 +69,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.caffeine = newCaffeineManager(bus)
 	b.fingerprint = newFingerprintWatcher(bus)
 	b.profile = newProfileManager(bus)
+	b.camera = newCameraWatcher(bus)
 	b.power = newPowerManager(b.lock, b.workspaces)
 	b.workspaces.onMonitors = b.brightness.monitorsChanged
 
@@ -82,6 +86,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	mux.HandlePrefix("brightness.", b.brightness.handle)
 	mux.HandlePrefix("caffeine.", b.caffeine.handle)
 	mux.HandlePrefix("profile.", b.profile.handle)
+	mux.HandlePrefix("camera.", b.camera.handle)
 
 	b.srv = ipc.NewServer(ipc.Config{
 		AppName:    "blueshell",
@@ -90,7 +95,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 
 		CapabilitiesFunc: b.capabilities,
 
-		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness, TopicCaffeine, TopicKeymode, TopicFingerprint, TopicProfile},
+		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness, TopicCaffeine, TopicKeymode, TopicFingerprint, TopicProfile, TopicFocus, TopicCamera},
 
 		OnSubscribe: b.replaySnapshots,
 	}, mux.ServeIPC)
@@ -112,6 +117,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.caffeine.start(ctx)
 	b.fingerprint.start(ctx)
 	b.profile.start(ctx)
+	b.camera.start(ctx)
 
 	go func() {
 		defer func() {
@@ -138,6 +144,7 @@ func (b *Backend) capabilities() []string {
 	caps := []string{"metrics", "metrics.cpu", "metrics.memory", "metrics.gpu", "metrics.disk", "metrics.uptime", "clock"}
 	if b.workspaces.available() {
 		caps = append(caps, "workspaces")
+		caps = append(caps, "focus")
 	}
 	if b.network.available() {
 		caps = append(caps, "network")
@@ -165,6 +172,9 @@ func (b *Backend) capabilities() []string {
 	}
 	if b.fingerprint.available() {
 		caps = append(caps, "fingerprint")
+	}
+	if b.camera.available() {
+		caps = append(caps, "camera")
 	}
 	return caps
 }
@@ -197,6 +207,10 @@ func (b *Backend) replaySnapshots(topics []string, _ *ipc.Subscriber) {
 				b.fingerprint.republish()
 			case TopicProfile:
 				b.profile.republish()
+			case TopicFocus:
+				b.workspaces.republishFocus()
+			case TopicCamera:
+				b.camera.republish()
 			}
 		}
 	}()
@@ -218,6 +232,7 @@ func (b *Backend) handleServerInfo(_ context.Context, w *ipc.ConnWriter, req ipc
 		"caffeine":     b.caffeine.info(),
 		"fingerprint":  b.fingerprint.info(),
 		"profile":      b.profile.info(),
+		"camera":       b.camera.info(),
 	})
 }
 

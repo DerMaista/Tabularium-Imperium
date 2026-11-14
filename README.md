@@ -22,11 +22,13 @@ The same desktop after switching themes, and with a different sigil:
 
 - Bar with workspaces, clock, CPU/RAM/GPU/VRAM, storage, uptime, network,
   IP address, volume, media, battery, brightness, power profile, keyboard
-  layout and mode, system tray
+  layout and mode, focused window title, privacy indicator (microphone,
+  camera, screen cast), system tray
 - Wallpaper with a blueprint grid shader and a configurable SVG sigil
 - Session lock (`ext-session-lock-v1`) with PAM, optional fingerprint, idle
   locking, lock-before-suspend and a window flyout animation
-- Notification server with toasts, a history centre, actions and do not disturb
+- Notification server with toasts, a history centre grouped per
+  application, actions and do not disturb
 - Logout panel (lock, sleep, exit, reboot, shutdown); power actions go
   through logind, exit asks the compositor to quit
 - On-screen display for volume and brightness

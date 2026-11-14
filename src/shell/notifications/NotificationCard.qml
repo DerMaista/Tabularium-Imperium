@@ -20,6 +20,12 @@ Rectangle {
     property bool showClose: false
     property bool clickable: false
 
+    // The centre names the app once per group, so its cards leave it out.
+    property bool showApp: true
+
+    // How many more notifications of the same app sit under this popup.
+    property int stackCount: 0
+
     signal closeRequested
     signal clicked
 
@@ -180,7 +186,14 @@ Rectangle {
 
             Text {
                 visible: text !== ""
-                text: root.notification.appName.toUpperCase()
+                text: {
+                    const parts = [];
+                    if (root.showApp && root.notification.appName !== "")
+                        parts.push(root.notification.appName.toUpperCase());
+                    if (root.stackCount > 0)
+                        parts.push("+" + root.stackCount + " MORE");
+                    return parts.join(" · ");
+                }
                 color: Colors.accent
                 opacity: 0.7
                 font.pixelSize: Config.fontsize - 3

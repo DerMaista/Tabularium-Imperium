@@ -129,14 +129,84 @@ Singleton {
         return out;
     }
 
-    readonly property var visiblePopups: {
+    // Popups stack per application: one card per app, newest on top, so a
+    // chatty sender takes one slot of the popup limit, not all of them.
+    readonly property var popupGroups: root.groupBy(root.popups)
+
+    readonly property var visiblePopupGroups: {
         const limit = Config.notificationsPopupLimit;
-        if (limit <= 0 || root.popups.length <= limit)
-            return root.popups;
-        return root.popups.slice(0, limit);
+        if (limit <= 0 || root.popupGroups.length <= limit)
+            return root.popupGroups;
+        return root.popupGroups.slice(0, limit);
     }
 
-    readonly property int hiddenPopupCount: root.popups.length - root.visiblePopups.length
+    readonly property int hiddenPopupCount: {
+        let hidden = 0;
+        for (let i = root.visiblePopupGroups.length; i < root.popupGroups.length; i++)
+            hidden += root.popupGroups[i].notifications.length;
+        return hidden;
+    }
+
+    // Notifications grouped by application, in order of each group's newest
+    // notification.
+    readonly property var groups: root.groupBy(root.history)
+
+    function groupKey(n) {
+        const name = n.appName || n.desktopEntry || "";
+        return name.toLowerCase();
+    }
+
+    function groupBy(list) {
+        const byKey = {};
+        const out = [];
+        for (const n of list) {
+            const key = root.groupKey(n);
+            let group = byKey[key];
+            if (!group) {
+                group = {
+                    "key": key,
+                    "name": n.appName || n.desktopEntry || "",
+                    "notifications": []
+                };
+                byKey[key] = group;
+                out.push(group);
+            }
+            group.notifications.push(n);
+        }
+        return out;
+    }
+
+    // Groups in the centre are collapsed to their newest notification until
+    // expanded. Survives closing the centre, not a restart.
+    property var expandedGroups: ({})
+
+    function isExpanded(key) {
+        return root.expandedGroups[key] === true;
+    }
+
+    function toggleGroup(key) {
+        const expanded = Object.assign({}, root.expandedGroups);
+        if (expanded[key])
+            delete expanded[key];
+        else
+            expanded[key] = true;
+        root.expandedGroups = expanded;
+    }
+
+    function dismissGroup(key) {
+        const doomed = root.history.filter(n => root.groupKey(n) === key);
+        for (const n of doomed)
+            root.forgetPopup(n.id);
+        for (const n of doomed)
+            n.dismiss();
+        root.pruneArrivals();
+    }
+
+    function hidePopupGroup(key) {
+        const ids = root.popups.filter(n => root.groupKey(n) === key).map(n => n.id);
+        for (const id of ids)
+            root.hidePopup(id);
+    }
 
     function popupTimeout(n) {
         if (n.urgency === NotificationUrgency.Critical)

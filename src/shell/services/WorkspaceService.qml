@@ -16,7 +16,18 @@ Singleton {
     // Compositor-wide: mango has one keymode, not one per output.
     property string keymode: "default"
 
+    readonly property bool focusAvailable: BackendService.has("focus")
+
+    // The last focused window of every monitor, and the monitor that holds
+    // keyboard focus right now ("" when nothing is focused).
+    property var focusedWindows: ({})
+    property string focusedMonitor: ""
+
     signal monitorUpdated(string name)
+
+    function focusFor(name) {
+        return root.focusedWindows[name] || null;
+    }
 
     function tagsFor(name) {
         const entry = root.monitors[name];
@@ -74,10 +85,19 @@ Singleton {
                 root.keymode = data.keymode;
         }
 
+        function onFocusEvent(data) {
+            if (!data)
+                return;
+            root.focusedWindows = data.monitors || ({});
+            root.focusedMonitor = data.focused || "";
+        }
+
         function onLinkDown() {
             root.monitors = ({});
             root.minActiveClients = 0;
             root.keymode = "default";
+            root.focusedWindows = ({});
+            root.focusedMonitor = "";
         }
     }
 }
