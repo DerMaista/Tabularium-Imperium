@@ -23,6 +23,10 @@
     "sigil": {
         "dir": ""
     },
+    "wallpaper": {
+        "mode": "sigil",
+        "dir": "wallpapers"
+    },
     "lock": {
         "idleTimeout": 300,
         "flyout": true,

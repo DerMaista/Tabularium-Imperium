@@ -24,28 +24,71 @@ Singleton {
 
     readonly property url source: root.path.length > 0 ? "file://" + root.path : ""
 
+    // Picker half shown: "image" or "sigil"; opens on the current mode, switchView flips it.
+    property string view: "sigil"
+
+    readonly property var entries: root.view === "image" ? WallpaperService.wallpapers.map(wallpaper => ({
+                "kind": "image",
+                "name": wallpaper.name,
+                "path": wallpaper.path,
+                "isDefault": !!wallpaper.default
+            })) : root.sigils.map(sigil => ({
+                "kind": "sigil",
+                "name": sigil.name,
+                "path": sigil.path,
+                "isDefault": false
+            }))
+
+    function switchView() {
+        root.view = root.view === "image" ? "sigil" : "image";
+        root.selectCurrent();
+    }
+
+    function isCurrentEntry(entry) {
+        if (!entry)
+            return false;
+        if (entry.kind === "image")
+            return WallpaperService.showing === "image" && entry.path === WallpaperService.image;
+        return WallpaperService.showing !== "image" && entry.name === root.current;
+    }
+
     function moveSelection(delta) {
-        const count = root.sigils.length;
+        const count = root.entries.length;
         if (count === 0)
             return;
         root.selectedIndex = (root.selectedIndex + delta + count) % count;
     }
 
     function activateSelected() {
-        const sigil = root.sigils[root.selectedIndex];
-        if (sigil)
-            root.apply(sigil.name);
+        root.activate(root.selectedIndex);
+    }
+
+    // Picking an image or sigil switches to that mode and is remembered for the current theme.
+    function activate(index) {
+        const entry = root.entries[index];
+        if (!entry)
+            return;
+        if (entry.kind === "image") {
+            WallpaperService.pick(entry.path);
+            return;
+        }
+        WallpaperService.pick("");
+        if (entry.name !== root.current)
+            root.apply(entry.name);
     }
 
     function selectCurrent() {
-        const index = root.sigils.findIndex(sigil => sigil.name === root.current);
+        const index = root.entries.findIndex(entry => root.isCurrentEntry(entry));
         root.selectedIndex = Math.max(0, index);
     }
 
     function openPicker() {
         if (!root.available)
             return;
+        root.view = WallpaperService.mode === "image" ? "image" : "sigil";
         root.refresh();
+        WallpaperService.refresh();
+        root.selectCurrent();
         root.pickerOpen = true;
     }
 
@@ -98,6 +141,16 @@ Singleton {
             root.current = response.result.current || name;
             root.path = response.result.path || "";
         });
+    }
+
+    // Keep the selection on the current entry when the wallpaper list arrives after the sigils.
+    Connections {
+        target: WallpaperService
+
+        function onWallpapersChanged() {
+            if (root.pickerOpen)
+                root.selectCurrent();
+        }
     }
 
     Connections {

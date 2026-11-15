@@ -40,6 +40,7 @@ internal/backend/
   brightness.go      brightness topic, gamma fallback via wl-gammarelay-rs
   backlight.go       /sys/class/backlight access via logind
   sigil.go           sigil listing and selection
+  wallpaper.go       wallpaper mode (sigil or image) and image path
   camera.go          which processes hold a /dev/video* node open
 shell/
   shell.qml          entry point, per-screen Variants, IpcHandlers
@@ -105,6 +106,14 @@ Themes live in `~/.config/blueshell/themes/` and are rendered into
 Sigils are SVG files. User files come from `sigil.dir` (default
 `<configDir>/svgs`) and override built-ins of the same name. Only the name is
 stored, in `~/.local/state/blueshell/current-sigil`.
+
+The wallpaper is either the blueprint grid with the sigil (`sigil` mode) or an
+image (`image` mode). Each theme has a set of wallpapers: the `wallpaper` and
+`wallpapers` keys of its theme file plus `<wallpaper.dir>/<theme>/`. Mode and
+image live in `~/.local/state/blueshell/wallpaper-mode` and `wallpaper-image`;
+what was picked per theme lives in `wallpaper-picks.json` and is restored by
+`theme.apply`. `wallpaper.mode` in the config is the default until a mode is
+picked. Image mode without a readable image shows the sigil.
 
 ## Lock screen
 

@@ -130,6 +130,15 @@ Singleton {
                 property string dir: ""
             }
 
+            property JsonObject wallpaper: JsonObject {
+                id: wallpaperModeConfig
+
+                // "sigil" or "image"; default until `blueshell wallpaper mode` picks one.
+                property string mode: "sigil"
+                // One folder of images per theme, <dir>/<theme>/, relative to the config dir.
+                property string dir: "wallpapers"
+            }
+
             property JsonObject lock: JsonObject {
                 id: lockConfig
 

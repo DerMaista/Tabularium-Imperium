@@ -105,6 +105,9 @@ type chromaPalette struct {
 type themeManager struct {
 	bus *ipc.EventBus
 
+	// onApplied runs after a theme was applied, with its name.
+	onApplied func(string)
+
 	mu      sync.Mutex
 	current string
 	busy    bool
@@ -381,6 +384,9 @@ func (t *themeManager) apply(ctx context.Context, name string) (string, error) {
 
 	log.Infof("applied theme %q", name)
 	t.bus.Publish(TopicTheme, map[string]any{"current": name})
+	if t.onApplied != nil {
+		t.onApplied(name)
+	}
 
 	return output, nil
 }

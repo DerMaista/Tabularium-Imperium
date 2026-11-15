@@ -151,7 +151,7 @@ Item {
 
             screen: root.screen
             anchors {
-                right: battery.left
+                right: battery.visible ? battery.left : storage.left
                 verticalCenter: parent.top
                 verticalCenterOffset: root.strokeWidth / 2
                 margins: root.uniformMargin
@@ -161,7 +161,7 @@ Item {
         Tray {
             screen: root.screen
             anchors {
-                right: privacy.visible ? privacy.left : battery.left
+                right: privacy.visible ? privacy.left : battery.visible ? battery.left : storage.left
                 verticalCenter: parent.top
                 verticalCenterOffset: root.strokeWidth / 2
                 margins: root.uniformMargin

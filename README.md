@@ -24,7 +24,8 @@ The same desktop after switching themes, and with a different sigil:
   IP address, volume, media, battery, brightness, power profile, keyboard
   layout and mode, focused window title, privacy indicator (microphone,
   camera, screen cast), system tray
-- Wallpaper with a blueprint grid shader and a configurable SVG sigil
+- Wallpaper with a blueprint grid shader and a configurable SVG sigil, or an
+  image taken from the active Chromarium theme
 - Session lock (`ext-session-lock-v1`) with PAM, optional fingerprint, idle
   locking, lock-before-suspend and a window flyout animation
 - Notification server with toasts, a history centre grouped per
@@ -99,9 +100,42 @@ blueshell logout toggle
 blueshell notifications toggle
 blueshell theme toggle
 blueshell sigil toggle
+blueshell wallpaper toggle
 blueshell brightness up 5
 blueshell caffeine toggle
 ```
+
+### Wallpaper
+
+The wallpaper shows either the blueprint grid with the sigil or an image.
+Every theme has its own set of wallpapers, collected from
+
+- the `"wallpaper"` (the theme's default) and `"wallpapers"` keys of its
+  Chromarium theme file:
+
+  ```json
+  {
+    "wallpaper": "/home/me/Pictures/nebula.png",
+    "wallpapers": ["/home/me/Pictures/dunes.jpg", "/home/me/Pictures/rain.png"]
+  }
+  ```
+
+- the images in `~/.config/tabularium-imperium/wallpapers/<theme>/`
+  (`wallpaper.dir`).
+
+`blueshell sigil toggle` opens a picker with the current theme's wallpapers
+above the sigils. Picking an image switches to it; picking a sigil switches
+back to the blueprint grid. The choice is remembered per theme, and applying
+a theme brings it back (or the theme's default, if nothing was picked).
+Image mode without an image shows the sigil.
+
+```bash
+blueshell wallpaper list         # the current theme's set
+blueshell wallpaper mode image   # or sigil, or toggle
+blueshell wallpaper set ~/Pictures/nebula.png
+```
+
+`wallpaper.mode` in `settings` sets the starting mode.
 
 `blueshell --help` lists the rest. `blueshell restart` and `blueshell kill`
 control a running instance; only one instance runs per Wayland display.

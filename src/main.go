@@ -91,10 +91,29 @@ func main() {
 	root.AddCommand(dndCommand())
 	root.AddCommand(lockCommand())
 	root.AddCommand(sigilCommand())
+	root.AddCommand(wallpaperCommand())
 	root.AddCommand(caffeineCommand())
 	root.AddCommand(brightnessCommand())
 
-	app.New(app.Info{Name: "blueshell", ID: appID, Version: Version}, root).Execute()
+	var a *app.App
+	withoutTerminalQueries(func() {
+		a = app.New(app.Info{Name: "blueshell", ID: appID, Version: Version}, root)
+	})
+	a.Execute()
+}
+
+// withoutTerminalQueries runs fn with TERM=dumb so termenv skips OSC 10/11 colour queries that leak into the prompt or stall 10s.
+func withoutTerminalQueries(fn func()) {
+	term, had := os.LookupEnv("TERM")
+	_ = os.Setenv("TERM", "dumb")
+	defer func() {
+		if had {
+			_ = os.Setenv("TERM", term)
+		} else {
+			_ = os.Unsetenv("TERM")
+		}
+	}()
+	fn()
 }
 
 func logoutCommand() *cobra.Command {

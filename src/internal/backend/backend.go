@@ -27,6 +27,7 @@ const (
 	TopicProfile     = "profile"
 	TopicFocus       = "focus"
 	TopicCamera      = "camera"
+	TopicWallpaper   = "wallpaper"
 )
 
 type Backend struct {
@@ -47,6 +48,7 @@ type Backend struct {
 	fingerprint *fingerprintWatcher
 	profile     *profileManager
 	camera      *cameraWatcher
+	wallpaper   *wallpaperManager
 }
 
 func Boot(ctx context.Context) (*Backend, error) {
@@ -70,6 +72,8 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.fingerprint = newFingerprintWatcher(bus)
 	b.profile = newProfileManager(bus)
 	b.camera = newCameraWatcher(bus)
+	b.wallpaper = newWallpaperManager(bus, b.theme)
+	b.theme.onApplied = b.wallpaper.themeChanged
 	b.power = newPowerManager(b.lock, b.workspaces)
 	b.workspaces.onMonitors = b.brightness.monitorsChanged
 
@@ -87,6 +91,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	mux.HandlePrefix("caffeine.", b.caffeine.handle)
 	mux.HandlePrefix("profile.", b.profile.handle)
 	mux.HandlePrefix("camera.", b.camera.handle)
+	mux.HandlePrefix("wallpaper.", b.wallpaper.handle)
 
 	b.srv = ipc.NewServer(ipc.Config{
 		AppName:    "blueshell",
@@ -95,7 +100,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 
 		CapabilitiesFunc: b.capabilities,
 
-		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness, TopicCaffeine, TopicKeymode, TopicFingerprint, TopicProfile, TopicFocus, TopicCamera},
+		DefaultSubscribeTopics: []string{TopicMetrics, TopicWorkspaces, TopicNetwork, TopicClock, TopicTheme, TopicLock, TopicSigil, TopicBrightness, TopicCaffeine, TopicKeymode, TopicFingerprint, TopicProfile, TopicFocus, TopicCamera, TopicWallpaper},
 
 		OnSubscribe: b.replaySnapshots,
 	}, mux.ServeIPC)
@@ -118,6 +123,7 @@ func Boot(ctx context.Context) (*Backend, error) {
 	b.fingerprint.start(ctx)
 	b.profile.start(ctx)
 	b.camera.start(ctx)
+	b.wallpaper.start(ctx)
 
 	go func() {
 		defer func() {
@@ -176,6 +182,9 @@ func (b *Backend) capabilities() []string {
 	if b.camera.available() {
 		caps = append(caps, "camera")
 	}
+	if b.wallpaper.available() {
+		caps = append(caps, "wallpaper")
+	}
 	return caps
 }
 
@@ -211,6 +220,8 @@ func (b *Backend) replaySnapshots(topics []string, _ *ipc.Subscriber) {
 				b.workspaces.republishFocus()
 			case TopicCamera:
 				b.camera.republish()
+			case TopicWallpaper:
+				b.wallpaper.republish()
 			}
 		}
 	}()
@@ -233,6 +244,7 @@ func (b *Backend) handleServerInfo(_ context.Context, w *ipc.ConnWriter, req ipc
 		"fingerprint":  b.fingerprint.info(),
 		"profile":      b.profile.info(),
 		"camera":       b.camera.info(),
+		"wallpaper":    b.wallpaper.info(),
 	})
 }
 
