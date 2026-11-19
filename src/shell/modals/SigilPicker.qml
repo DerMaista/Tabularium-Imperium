@@ -235,7 +235,8 @@ PanelWindow {
                                     fillMode: Image.PreserveAspectCrop
                                     sourceSize.width: parent.width * 2
                                     sourceSize.height: parent.height * 2
-                                    source: "file://" + wallpaperCard.modelData.path
+                                    // Cached small thumbnail from the backend; the full image only until it exists.
+                                    source: "file://" + (wallpaperCard.modelData.thumb || wallpaperCard.modelData.path)
                                     asynchronous: true
                                     clip: true
                                 }

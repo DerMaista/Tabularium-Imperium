@@ -79,6 +79,7 @@ Singleton {
         id: file
 
         path: root.configDir + "/colors.json"
+        blockLoading: true
         watchChanges: true
         printErrors: false
 

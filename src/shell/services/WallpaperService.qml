@@ -21,6 +21,10 @@ Singleton {
     property string dir: ""
     property bool loading: false
 
+    // False until the backend has reported what to show (or it gave up waiting),
+    // so the wallpaper doesn't flash the sigil default at startup.
+    property bool known: false
+
     readonly property bool showImage: root.showing === "image" && root.image.length > 0
     readonly property url source: root.image.length > 0 ? "file://" + root.image : ""
 
@@ -39,8 +43,19 @@ Singleton {
         if (data.theme !== undefined && data.theme !== root.theme) {
             root.theme = data.theme;
             root.refresh();
+        } else if (data.listChanged) {
+            // New picker thumbnails are ready.
+            root.refresh();
         }
+        root.known = true;
         root.updated();
+    }
+
+    // No backend (or no wallpaper support): fall back to the sigil defaults.
+    Timer {
+        interval: 1500
+        running: !root.known
+        onTriggered: root.known = true
     }
 
     function refresh() {
@@ -92,6 +107,8 @@ Singleton {
             BackendService.sendRequest("wallpaper.current", null, response => {
                 if (!response.error)
                     root.update(response.result);
+                else
+                    root.known = true;
             });
         }
     }

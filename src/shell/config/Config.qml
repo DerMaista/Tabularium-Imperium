@@ -59,6 +59,7 @@ Singleton {
         id: file
 
         path: root.configDir + "/config.json"
+        blockLoading: true
         watchChanges: true
         printErrors: false
 

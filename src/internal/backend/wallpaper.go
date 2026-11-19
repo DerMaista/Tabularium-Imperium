@@ -51,10 +51,12 @@ type wallpaperManager struct {
 	mode  string
 	image string
 	picks map[string]wallpaperPick
+
+	thumbs *thumbCache
 }
 
 func newWallpaperManager(bus *ipc.EventBus, theme *themeManager) *wallpaperManager {
-	return &wallpaperManager{bus: bus, theme: theme, picks: map[string]wallpaperPick{}}
+	return &wallpaperManager{bus: bus, theme: theme, picks: map[string]wallpaperPick{}, thumbs: newThumbCache()}
 }
 
 func (m *wallpaperManager) start(context.Context) {
@@ -66,6 +68,22 @@ func (m *wallpaperManager) start(context.Context) {
 	m.image = image
 	m.picks = picks
 	m.mu.Unlock()
+
+	m.warmThumbs(m.themeWallpapers(m.currentTheme()))
+}
+
+// warmThumbs builds missing picker thumbnails in the background; once some are
+// ready the UI is told to re-list so it swaps them in.
+func (m *wallpaperManager) warmThumbs(entries []wallpaperEntry) {
+	srcs := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		srcs = append(srcs, entry.Path)
+	}
+	m.thumbs.generate(srcs, func() {
+		payload := m.snapshot()
+		payload["listChanged"] = true
+		m.bus.Publish(TopicWallpaper, payload)
+	})
 }
 
 func wallpaperConfig() wallpaperSettings {
@@ -230,9 +248,11 @@ func (m *wallpaperManager) listPayload() map[string]any {
 		list = append(list, map[string]any{
 			"name":    entry.Name,
 			"path":    entry.Path,
+			"thumb":   m.thumbs.lookup(entry.Path),
 			"default": entry.Default,
 		})
 	}
+	m.warmThumbs(entries)
 	payload := m.snapshot()
 	payload["wallpapers"] = list
 	if theme != "" {
@@ -333,8 +353,11 @@ func (m *wallpaperManager) themeChanged(theme string) {
 	pick, ok := m.picks[theme]
 	m.mu.Unlock()
 
-	if !ok {
-		pick.Image = m.firstWallpaper(theme)
+	entries := m.themeWallpapers(theme)
+	m.warmThumbs(entries)
+
+	if !ok && len(entries) > 0 {
+		pick.Image = entries[0].Path
 	}
 
 	m.mu.Lock()

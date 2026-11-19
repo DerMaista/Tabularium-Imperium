@@ -22,7 +22,17 @@ Singleton {
 
     property int selectedIndex: 0
 
+    // False until the backend has reported the current sigil (or it gave up waiting),
+    // so the built-in fallback doesn't flash at startup.
+    property bool known: false
+
     readonly property url source: root.path.length > 0 ? "file://" + root.path : ""
+
+    Timer {
+        interval: 1500
+        running: !root.known
+        onTriggered: root.known = true
+    }
 
     // Picker half shown: "image" or "sigil"; opens on the current mode, switchView flips it.
     property string view: "sigil"
@@ -167,6 +177,7 @@ Singleton {
 
         function onLinkUp() {
             BackendService.sendRequest("sigil.current", null, response => {
+                root.known = true;
                 if (response.error || !response.result)
                     return;
                 root.current = response.result.current || "";

@@ -35,8 +35,20 @@ Item {
     readonly property bool imageShown: WallpaperService.showImage && root.frontImage.status === Image.Ready && (root.frontImage.source == root.target || root.layerOnScreen)
     property real imageOpacity: root.imageShown ? 1 : 0
 
+    // Startup: show only the background until the backend says what to draw and,
+    // in image mode, the image has loaded; then appear without a fade.
+    readonly property bool settled: WallpaperService.known && SigilService.known && (!WallpaperService.showImage || root.targetDone(imageA) || root.targetDone(imageB))
+
+    function targetDone(image) {
+        return image.source == root.target && (image.status === Image.Ready || image.status === Image.Error);
+    }
+    property bool animate: false
+    onSettledChanged: if (root.settled)
+        Qt.callLater(() => root.animate = true)
+    readonly property real sigilOpacity: root.settled ? 1 - root.imageOpacity : 0
+
     Behavior on imageOpacity {
-        enabled: Config.colorAnimDuration > 0
+        enabled: root.animate && Config.colorAnimDuration > 0
 
         NumberAnimation {
             duration: Config.colorAnimDuration
@@ -94,7 +106,7 @@ Item {
         id: imageLayer
 
         anchors.fill: parent
-        opacity: root.imageOpacity
+        opacity: root.settled ? root.imageOpacity : 0
         visible: opacity > 0
 
         WallpaperImage {
@@ -159,7 +171,7 @@ Item {
 
         BlueprintGrid {
             anchors.fill: parent
-            opacity: 1 - root.imageOpacity
+            opacity: root.sigilOpacity
             visible: opacity > 0
 
             gridSize: 15
@@ -172,7 +184,7 @@ Item {
             id: centerLogo
 
             anchors.centerIn: parent
-            opacity: 1 - root.imageOpacity
+            opacity: root.sigilOpacity
             visible: root.showSigil && opacity > 0
 
             readonly property real size: Math.min(parent.width, parent.height) * 0.5

@@ -218,8 +218,14 @@ PanelWindow {
                                 baseline: groupName.baseline
                             }
                             spacing: root.uniformMargin / 2
+                            // A Row has no text baseline of its own; without this its top
+                            // edge lands on the group name's baseline and the labels slide
+                            // down under the first card.
+                            baselineOffset: expandLabel.baselineOffset
 
                             Text {
+                                id: expandLabel
+
                                 visible: group.total > 1
                                 text: group.expanded ? "LESS" : "+" + (group.total - 1) + " MORE"
                                 color: expandArea.containsMouse ? Colors.primary : Colors.accent
